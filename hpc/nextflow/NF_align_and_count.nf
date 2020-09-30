@@ -142,12 +142,20 @@ process counts {
         #Create a bed file to write the  starting position of every read and an end postion (end = start + readlength)
         awk -v readLen=${AVE_RL} -v OFS='\t' '{print $3,$4,$4+readLen}' ${SAMFILE} > ${AWKTMP}
 
+        BED4=!{PSAM}/${MYSAMFILE2/_uniq.sam/_uniq_int_all.bed}
         BED3=!{PSAM}/${MYSAMFILE2/_uniq.sam/_uniq_int.bed}
+        SUM=!{PSAM}/${MYSAMFILE2/_uniq.sam/_drop_summary.csv}
 
         #Run bedtools intersect with -loj between the reads and the features.
         #We will have one result for each region
         # pipe to awk to remove rows where a read does NOT overlap with a feature
-        bedtools intersect -a ${AWKTMP} -b !{BEDFILE} -loj |  awk -v OFS='\t' '$4 !="."' > ${BED3}
+        bedtools intersect -a ${AWKTMP} -b !{BEDFILE} -loj > ${BED4}  
+
+        awk -v OFS='\t' '$4 !="."' ${BED4} > ${BED3}
+
+        ## create file with counts for before and after dropping
+        awk -v a=0 -v b=!{row.G2}_!{row.FQ} -v OFS=',' 'BEGIN{print "fqName", "number_overlapping_rows", "total_number_rows"}; { if ($4 !=".") a++} END { print b, a, NR}' ${BED4} > ${SUM}
+        rm ${BED4}          
 
         #With awk substitute column 3 of sam file with column 7 (Feature name) of bed file (using chrom and pos as keys).
         ##omit reads with no feature assigned
@@ -161,14 +169,14 @@ process counts {
     done
 
     ## Grab sam files and bed files
+        ## sam1 (samA) = G1 and sam2 (samB) = G2
+    SAM1=!{PSAM}/!{row.G1}_!{row.FQ}_upd_uniq_FEATURE.sam
+    SAM2=!{PSAM}/!{row.G2}_!{row.FQ}_upd_uniq_FEATURE.sam
+    BED1=!{PSAM}/!{row.G1}_!{row.FQ}_upd_uniq_int.bed
+    BED2=!{PSAM}/!{row.G2}_!{row.FQ}_upd_uniq_int.bed
 
-    SAM1=!{PSAM}/!{row.G2}_!{row.FQ}_upd_uniq_FEATURE.sam
-    SAM2=!{PSAM}/!{row.G1}_!{row.FQ}_upd_uniq_FEATURE.sam
-    BED1=!{PSAM}/!{row.G2}_!{row.FQ}_upd_uniq_int.bed
-    BED2=!{PSAM}/!{row.G1}_!{row.FQ}_upd_uniq_int.bed
-
-    awk 'NR==FNR{c[$3]++;next};c[$7] == 0' ${SAM1} ${BED1} > !{CHKSC}/check_sam_bed_!{row.G2}_!{row.FQ}.txt
-    awk 'NR==FNR{c[$3]++;next};c[$7] == 0' ${SAM2} ${BED2} > !{CHKSC}/check_sam_bed_!{row.G1}_!{row.FQ}.txt
+    awk 'NR==FNR{c[$3]++;next};c[$7] == 0' ${SAM1} ${BED1} > !{CHKSC}/check_sam_bed_!{row.G1}_!{row.FQ}.txt
+    awk 'NR==FNR{c[$3]++;next};c[$7] == 0' ${SAM2} ${BED2} > !{CHKSC}/check_sam_bed_!{row.G2}_!{row.FQ}.txt
 
 
     ###### (3) Run Sam Compare
@@ -206,6 +214,11 @@ process aln_samC_checks {
     module purge
     module load python/3.6
 
+    ### mv drop summary to check_aln dir
+    echo "
+        Moving drop read summary files to check_aln dir"
+    mv !{PSAM}/*_!{row.FQ}_upd_drop_summary.csv !{CHKALN}/
+
     ### for every FQ file run, should have 2 sam files (NOTE default is SE)
     echo "
 	Checking for 2 sam files"
@@ -230,9 +243,9 @@ process aln_samC_checks {
     echo -e "run sam compare check for !{row.FQ} "
     # Check to make sure counts in csv summary file is within range of minimum unique reads from respective sam files and
     # the summation of the unique reads of both sam files
-    python !{SCRIPTS}/check_samcomp_for_lost_reads_02brm.py \
-       -b1 !{CHKALN}/!{row.G1}_!{row.FQ}_upd_summary.csv \
-       -b2 !{CHKALN}/!{row.G2}_!{row.FQ}_upd_summary.csv \
+    python !{SCRIPTS}/check_samcomp_for_lost_reads_03amm.py \
+       -b1 !{CHKALN}/!{row.G1}_!{row.FQ}_upd_drop_summary.csv \
+       -b2 !{CHKALN}/!{row.G2}_!{row.FQ}_upd_drop_summary.csv \
        -G1 !{row.G1} \
        -G2 !{row.G2} \
        -s !{SAMC}/ase_totals_!{row.FQ}.txt \
