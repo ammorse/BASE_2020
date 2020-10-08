@@ -7,14 +7,16 @@
     </requirements>
     <command>
 <![CDATA[ 
-        awk -v OFS='	' '$4 !="."' '$BEDINT' > '$BED3'
+        awk -v OFS='	' '$4 !="."' '$BEDINT' > '$BED3';
+	awk -v a=0 'BEGIN{print "fqName\tnumber_overlapping_rows\ttotal_number_rows"} {if($4 !=".") a++} END{print "$BEDINT.element_identifier""\t"a"\t"NR }' '$BED3' > $summary
 ]]>
     </command>
     <inputs>
-        <param name="BEDINT" type="data" format="tabular" label="Output from Bedtools Intersect Intervals" help="Input BED file made from loj intersection between BED files with location of unique reads and features of interest" />
+      <param name="BEDINT" type="data" format="tabular" label="Output from Bedtools Intersect Intervals" help="Input BED file made from loj intersection between BED files with location of unique reads and features of interest" />
     </inputs>
     <outputs>
-        <data name="BED3" format="bed" label="${tool.name} on ${on_string}: Multi-column BED file with overlapping reads" />
+      <data name="BED3" format="tabular" label="${tool.name} on ${on_string}: Multi-column BED file with overlapping reads" />
+      <data name="summary" format="tabular" label="${tool.name} on ${on_string}: output summary file" help="Input BED file made from loj intersection between BED files with location of unique reads and features of interest" />
     </outputs>
     <tests>
         <test>
@@ -68,10 +70,10 @@ Example output BED file:
     ]]></help>
     <citations>
             <citation type="bibtex">@ARTICLE{Miller20BASE,
-            author = {Brecca Miller, Alison Morse, Elyse Borgert, Gavin Gamble, Fei Zhou, Jeremy Newman, Fabio Marroni, Lauren M. McIntyre},
-            title = {BASE: Bayesian analysis of allele specific expression reveals statistically significant regulatory variation},
+            author = {Brecca Miller, Alison M. Morse, Elyse Borgert, Zihao Liu, Kelsey Sinclair, Gavin Gamble, Fei Zou, Jeremy Newman, Luis Leon Novello, Fabio Marroni, Lauren M. McIntyre},
+            title = {Testcrosses are an efficient strategy for identifying cis regulatory variation: Bayesian analysis of allele imbalance among conditions (BASE)},
             journal = {????},
-            year = {in press}
+            year = {submitted for publication}
             }</citation>
         </citations>
 </tool>

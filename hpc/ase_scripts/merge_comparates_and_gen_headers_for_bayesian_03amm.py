@@ -27,17 +27,17 @@ def main():
     ### Create subset of design file of comparate specification columns (will quantify # comparates by number of columns left)
     ### Store compID to name output file
 
-    c1_g1_list = df_design['C1_G1'].tolist()
-    c1_g2_list = df_design['C1_G2'].tolist()
-    c2_g1_list = df_design['C2_G1'].tolist()
-    c2_g2_list = df_design['C2_G2'].tolist()
+#    c1_g1_list = df_design['C1_G1'].tolist()
+#    c1_g2_list = df_design['C1_G2'].tolist()
+#    c2_g1_list = df_design['C2_G1'].tolist()
+#    c2_g2_list = df_design['C2_G2'].tolist()
     c1_list = df_design['Comparate_1'].tolist()
     c2_list = df_design['Comparate_2'].tolist()
 
-    del df_design['C1_G1']
-    del df_design['C1_G2']
-    del df_design['C2_G1']
-    del df_design['C2_G2']
+#    del df_design['C1_G1']
+#    del df_design['C1_G2']
+#    del df_design['C2_G1']
+#    del df_design['C2_G2']
     
     dict = {}
     col_list = list(df_design.columns.values)
@@ -55,10 +55,10 @@ def main():
         file_list = []
         comp_dict = {}
         comparison = comparison_list[key]
-        c1_g1= c1_g1_list[key]
-        c1_g2= c1_g2_list[key]
-        c2_g1= c2_g1_list[key]
-        c2_g2= c2_g2_list[key]
+#        c1_g1= c1_g1_list[key]
+#        c1_g2= c1_g2_list[key]
+#        c2_g1= c2_g1_list[key]
+#        c2_g2= c2_g2_list[key]
         c1= c1_list[key]
         c2= c2_list[key]
         for i, comp in enumerate(row_list):
@@ -81,6 +81,8 @@ def main():
         ## AMM fixing below line get_values is deprecated
         ## merged_headers = list(df_merged.columns.get_values())
         merged_headers = list(df_merged.columns.to_numpy())
+        print("printing merged headers")
+        print(merged_headers)
 
         ### For stan model, requires headers to have general comparate input names
         ### This reassigns comparate names to be c1, c2, c3... depending on design file specifications
