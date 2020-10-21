@@ -38,7 +38,7 @@ process mergePriors {
     mkdir -p !{BAYESIN}
     echo "running merge priors to comparate
     "
-    python3 !{SCRIPTS}/merge_priors_to_comparate_03amm.py \
+    python3 !{SCRIPTS}/merge_priors_to_comparate_05amm.py \
         --output !{BAYESIN} \
         --comp !{FILT} \
         --prior !{PRIORS} \

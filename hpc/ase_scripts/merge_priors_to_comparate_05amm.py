@@ -1,11 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
-import os
 import sys
-import numpy as np
-from functools import reduce
-from collections import OrderedDict
 import pandas as pd
 
 ## merge filtered/summarized files with qsim values by user-specified comparison
@@ -32,11 +28,6 @@ def main():
 #    print(df_design)
 
     dict = {}
-    col_list = list(df_design.columns.values)
-    row_list = []
-
-    g1_list = df_design['G1'].tolist()
-    g2_list = df_design['G2'].tolist()
     comparate_list = df_design['sample'].tolist()
     prior_list = df_design['prior_file'].tolist()
 
@@ -48,16 +39,9 @@ def main():
         
     ## If there are comparison columns (column # > 1)
     for key in dict:
-        row_list = dict[key]
-        file_list = []
-        comp_dict = {}
-
-        g1 = g1_list[key]
-        g2 = g2_list[key]
         comparate = comparate_list[key]
-        prior_file = prior_list[key]
 
-        data_fileName = args.comp + '/ase_counts_filtered_' + comparate + '.csv'
+        data_fileName =args.comp + '/ase_counts_filtered_' + comparate + '.csv'
         data_df = pd.read_csv(data_fileName, index_col=None, header =0)
 
         prior_fileName = args.prior + '/' + comparate + '_prior.csv'
@@ -83,7 +67,7 @@ def main():
             df_merged = pd.concat(merge_list, axis=1)
 
 #            print(df_merged)
-            outfileName = args.output + '/bayesian_input_' + comparate + '.csv'
+            outfileName =args.output + '/bayesian_input_' + comparate + '.csv'
             df_merged.to_csv(outfileName, index=False)
 
             ## Results of this division might leave NaN in place of 0, so just fill with 0
@@ -96,6 +80,7 @@ def main():
             df_merged['prior_sum'] = df_merged.loc[:,prior_list].sum(axis=1)
             df_merged.loc[df_merged['prior_sum'] == 0, comparate + '_flag_analyze'] = 0
 
+            
             ### Add in other check to make sure g1 and g2 counts aren't both 0 - will crash otherwise!!!
             x_list = [namex for namex in df_merged.columns if '_g1_total_rep' in namex]
             y_list = [namey for namey in df_merged.columns if '_g2_total_rep' in namey]
