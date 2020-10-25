@@ -5,7 +5,7 @@
 #SBATCH --ntasks=1              # single cpu core
 #SBATCH --mem=3gb               # per processor memory
 
-DIR_PROJECT=/blue/mcintyre/fabio.marroni/2020_simul_stan
+DIR_PROJECT=/blue/mcintyre/fabio.marroni/git_BASE_2020/BASE_2020/simulation/
 
 cd $DIR_PROJECT/programs
 

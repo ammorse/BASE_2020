@@ -1,0 +1,1881 @@
+Sun Oct 25 10:51:59 EDT 2020
+c29a-s23.ufhpc
+/blue/mcintyre/fabio.marroni/git_BASE_2020/BASE_2020/simulation/programs
+This is task 2, which will do runs 3 to 4
+/tmp/slurmd/job60356475/slurm_script: line 40: [: 0.5: integer expression expected
+/tmp/slurmd/job60356475/slurm_script: line 41: [: 0.5: integer expression expected
+/tmp/slurmd/job60356475/slurm_script: line 42: [: 0.5: integer expression expected
+
+R version 3.6.3 (2020-02-29) -- "Holding the Windsock"
+Copyright (C) 2020 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> what.to.do <- (commandArgs(TRUE))
+> if(length(what.to.do)>0)
++ {
++   my.alpha <- as.numeric(as.character(unlist(strsplit(what.to.do[1],"="))[2]))
++ 	my.delta <- as.numeric(as.character(unlist(strsplit(what.to.do[2],"="))[2]))
++ 	my.qtest <- as.numeric(as.character(unlist(strsplit(what.to.do[3],"="))[2]))
++ 	my.qline <- as.numeric(as.character(unlist(strsplit(what.to.do[4],"="))[2]))
++ 	mult <- as.numeric(as.character(unlist(strsplit(what.to.do[5],"="))[2]))
++ 	myreads <- as.numeric(as.character(unlist(strsplit(what.to.do[6],"="))[2]))
++ 	simruns <- as.numeric(as.character(unlist(strsplit(what.to.do[7],"="))[2]))
++ 	out.file <- as.character(as.character(unlist(strsplit(what.to.do[8],"="))[2]))
++     nconditions<- as.numeric(as.character(unlist(strsplit(what.to.do[9],"="))[2]))
++ 
++ }
+> 
+> #It is horrible I know!
+> #Temporarily we hardcode the number of replicates
+> nreps<-3
+> 
+> #Removed set.seed(0) because always gave the same result!!!!!
+> #set.seed(0)
+> 
+> #Delta is like alpha, but in the second environment (i.e. delta=1 is no AI in ENV2)
+> 
+> 
+> ###################################################
+> #
+> # Try to generalize for n environments
+> #
+> ###################################################
+> 
+> seqcond<-paste("c",seq(1,nconditions),sep="")
+> 
+> 
+> repsuffix<-paste0("_rep",seq(1,nreps))
+> fornames1=paste("g1_",seqcond,sep="") #Genotype 1 given condition number
+> fornames2 <- c("sampleprop", "mean", "q025", "q975", "Bayes_evidence", "AI_decision")
+> fornames=paste(paste(rep(fornames1,each=length(fornames2)),fornames2,sep="_"),collapse=",")
+> #The three possible alignment states: better to tester (G1?), better to line (G2?), equally good (both).
+> #alnto<-c("g1","g2","Both")
+> counttester<-as.vector(sapply(paste("counts_",seqcond,"_g1",sep=""),paste0,repsuffix))
+> countline<-as.vector(sapply(paste("counts_",seqcond,"_g2",sep=""),paste0,repsuffix))
+> countboth<-as.vector(sapply(paste("counts_",seqcond,"_both",sep=""),paste0,repsuffix))
+> countheader<-paste(counttester,countline,countboth,sep=",",collapse=",")
+> priorstester<-paste("prior_",seqcond,"_g1",sep="")
+> priorsline<-paste("prior_",seqcond,"_g2",sep="")
+> allpriors<-sort(c(priorstester,priorsline))
+> seqreps<-paste(seqcond,"_num_reps",sep="")
+> activeflag<-paste(seqcond,"flag_analyze",sep="_")
+> firstheaders=paste(c("comparison","FEATURE_ID",
++                      seqreps,
++                      countheader,
++                       allpriors,
++ 					  activeflag),
++                       collapse=",")
+> print(unlist(strsplit(firstheaders,",")))
+ [1] "comparison"          "FEATURE_ID"          "c1_num_reps"        
+ [4] "counts_c1_g1_rep1"   "counts_c1_g2_rep1"   "counts_c1_both_rep1"
+ [7] "counts_c1_g1_rep2"   "counts_c1_g2_rep2"   "counts_c1_both_rep2"
+[10] "counts_c1_g1_rep3"   "counts_c1_g2_rep3"   "counts_c1_both_rep3"
+[13] "prior_c1_g1"         "prior_c1_g2"         "c1_flag_analyze"    
+> headers<-firstheaders
+> cat(headers, file=out.file, append=FALSE, sep="\n")
+> 
+> 
+> #End of arguments and names copied from the scripts used for the analysis of real data
+> 
+> 
+> 
+> ##################################
+> #
+> # Simulation
+> #
+> ##################################
+> print(simruns)
+[1] 2
+> for (aaa in 1:simruns)
++ {
++   #It simulates data according to a specific model (I need to check wich one)
++   #and compares the inference for different versions of the model
++   #
++   #Parameters of true model
++   allI<-rep(nreps,nconditions) #Number of replicates in each environment (we are currentyl stuck to having the same number of reps in the environments)
++   true_betas_row1 <- c(1,1.2,0.7)*myreads   #These are the biorep effets, the beta_i s
++   #At present we use true_betas that do not vary across conditions. This may be changed in the future
++   #When we were fixed to 2 environments we used different betas
++   true_betas_row2 <- c(1,1.3,0.8)*myreads
++   true_alpha <- my.alpha            #if different from 1 AI at environment 1 (Mated)
++   true_delta <- my.delta            #if different from 1 AI at environment 1 (Virgin)
++   true_gamma <- 1            #The current model assumes 1, but it used to be useful before
++   true_tau <- 1              #The current model assumes 1, but at some point we considered it different from 1
++ 
++   #If I well understand the first is q in tester and the second in line. q_row1 is enviornment1 and q_row2 environment 2
++   
++   allq<-matrix(rep(c(my.qtest,my.qline),nconditions),ncol=2,byrow=T)  
++   #q_row1 <- c(my.qtest, my.qline)
++   #q_row2 <- c(my.qtest, my.qline)
++   
++   true_phi <- 0.02           #Neg binomial dispersion parameter, the bigger it is the higher the variance=mu+phi mu^2 is
++ 
++   #xs <- ys <- zs <- rep(NA, sum(allI))
++ 
++   flaganalyze<- rep(1,nconditions)
++   for(loopc in 1:nconditions)
++ 	{
++ 		cat("loopc is",loopc,"\n")
++ 		means <- c(allq[loopc,1]/true_alpha, allq[loopc,2]*true_alpha, mult*((1-allq[loopc,1])/true_alpha+(1-allq[loopc,2])*true_alpha)*true_tau)
++ 		for(i in 1:allI[loopc])
++ 		{
++ 			xs <- rnbinom(1, size=1/true_phi, mu=means[1]*true_betas_row1[i])
++ 			ys <- rnbinom(1, size=1/true_phi, mu=means[2]*true_betas_row1[i])
++ 			zs <- rnbinom(1, size=1/true_phi, mu=means[3]*true_betas_row1[i])
++ 			# cat("xs of i",i,"is",xs[i],"\n")
++ 			# cat("true_betas_row1[i] is",true_betas_row1[i],"\n")
++ 			# cat("means[1] is",means[1],"\n")
++ 		if(loopc==1&i==1) mycounts<-paste(xs,ys,zs,sep=",") else mycounts<-paste(mycounts,xs,ys,zs,sep=",")
++ 		}	
++ 	}
++ 
++ 	cat("mycounts is",mycounts,"\n")
++ 	
++ 	out <- paste("line", "fusion_id", paste(allI,collapse=","),
++ 	          mycounts, 
++ 	          paste(as.vector(t(allq)),collapse=","), paste(flaganalyze,collapse=","), sep=",")
++ 	cat(out,file=out.file,append=TRUE,sep="\n")
++ }
+loopc is 1 
+mycounts is 99,28,106,127,27,144,77,22,97 
+loopc is 1 
+mycounts is 118,15,149,136,21,110,60,26,93 
+> 
+are_q_equal Y
+qsim1 0.5
+qmodel1 0.5
+
+R version 3.6.3 (2020-02-29) -- "Holding the Windsock"
+Copyright (C) 2020 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> what.to.do <- (commandArgs(TRUE))
+> if(length(what.to.do)>0)
++ {
++   data.file <- as.character(unlist(strsplit(what.to.do[1],"="))[2])
++   q.model.g1 <- as.numeric(as.character(unlist(strsplit(what.to.do[2],"="))[2]))
++   q.model.g2 <- as.numeric(as.character(unlist(strsplit(what.to.do[3],"="))[2]))
++   stan.program <- as.character(unlist(strsplit(what.to.do[4],"="))[2])
++   niter <- as.numeric(as.character(unlist(strsplit(what.to.do[5],"="))[2]))
++   nburnin <- as.numeric(as.character(unlist(strsplit(what.to.do[6],"="))[2]))
++   save.sample.freq <- as.numeric(as.character(unlist(strsplit(what.to.do[7],"="))[2]))
++   reporting.freq <- as.numeric(as.character(unlist(strsplit(what.to.do[8],"="))[2]))
++   stepsize <- as.numeric(as.character(unlist(strsplit(what.to.do[9],"="))[2]))
++   nconditions<- as.numeric(as.character(unlist(strsplit(what.to.do[10],"="))[2]))
++ }
+> 
+> out.dir <- dirname(data.file)
+> print(out.dir)
+[1] "/blue/mcintyre/fabio.marroni/git_BASE_2020/BASE_2020/simulation//g3_sim_output/H1_not_null_H2_not_null_H3_not_null"
+> 
+> base.out<-paste(gsub(".csv","",basename(data.file)), 
++                                  stan.program,
++                                  'qmodel_g1', q.model.g1, 'qmodel_g2', q.model.g2, 
++                                  'iterations', niter, 'burnin', nburnin, 
++                                  'thin', save.sample.freq, 'refresh', reporting.freq, 
++                                  'stepsize', stepsize, sep="_")
+> fileout <- paste(paste(out.dir, base.out, sep = "/"),".csv",sep="")
+> print(fileout)
+[1] "/blue/mcintyre/fabio.marroni/git_BASE_2020/BASE_2020/simulation//g3_sim_output/H1_not_null_H2_not_null_H3_not_null/out_alpha_0.5_delta_0.5_qsim_g1_0.5_qsim_g2_0.5_mult_1_myreads_100_simruns_2_stan2_qmodel_g1_0.5_qmodel_g2_0.5_iterations_6000_burnin_3000_thin_1_refresh_1000_stepsize_0.8.csv"
+> 
+> #########################
+> #Trying to generalize to an arbitrary number of conditions
+> #########################
+> 
+> seqcond<-paste("c",seq(1,nconditions),sep="")
+> fornames1=paste("g1_",seqcond,sep="") #Genotype 1 given condition number
+> fornames2 <- c("sampleprop", "mean", "q025", "q975", "Bayes_evidence", "AI_decision")
+> fornames=paste(paste(rep(fornames1,each=length(fornames2)),fornames2,sep="_"),collapse=",")
+> #The three possible alignment states: better to tester (G1?), better to line (G2?), equally good (both).
+> #alnto<-c("g1","g2","Both")
+> counttester<-paste("counts_",seqcond,"_g1",sep="")
+> countline<-paste("counts_",seqcond,"_g2",sep="")
+> countboth<-paste("counts_",seqcond,"_both",sep="")
+> countheader<-paste(counttester,countline,countboth,sep=",",collapse=",")
+> priorstester<-paste("prior_",seqcond,"_g1",sep="")
+> priorsline<-paste("prior_",seqcond,"_g2",sep="")
+> allpriors<-sort(c(priorstester,priorsline))
+> seqreps<-paste(seqcond,"_num_reps",sep="")
+> activeflag<-paste(seqcond,"flag_analyze",sep="_")
+> firstheaders=paste(c("comparison","FEATURE_ID",
++                      seqreps,
++                      countheader,
++                       allpriors, 
++ 					  "H3_independence_Bayes_evidence"),
++                       collapse=",")
+> 
+> alpha_post_names<-paste(paste("alpha",seq(1,nconditions),"_postmean",sep=""),collapse=",")
+> cat("alpha names are:",alpha_post_names,"\n")
+alpha names are: alpha1_postmean 
+> cat("firstheaders are:",firstheaders,"\n")
+firstheaders are: comparison,FEATURE_ID,c1_num_reps,counts_c1_g1,counts_c1_g2,counts_c1_both,prior_c1_g1,prior_c1_g2,H3_independence_Bayes_evidence 
+> headers_out=paste(firstheaders,fornames,alpha_post_names,paste(activeflag,collapse=","),sep=",")
+> cat("headers_out is:",headers_out,"\n")
+headers_out is: comparison,FEATURE_ID,c1_num_reps,counts_c1_g1,counts_c1_g2,counts_c1_both,prior_c1_g1,prior_c1_g2,H3_independence_Bayes_evidence,g1_c1_sampleprop,g1_c1_mean,g1_c1_q025,g1_c1_q975,g1_c1_Bayes_evidence,g1_c1_AI_decision,alpha1_postmean,c1_flag_analyze 
+> cat(headers_out,file=fileout,append=FALSE,sep="\n")
+> 
+> 
+> #End of arguments and names copied from the scripts used for the analysis of real data
+> 
+> #The special thing about this function is that it is able to accept a multiplicative factor for the estimation of the reads aligning on both genomes, to see how misspecification of that quantity affects results
+> options(warn=1)
+> 
+> library("rstan")
+Loading required package: StanHeaders
+Loading required package: ggplot2
+rstan (Version 2.21.2, GitRev: 2e1f913d3ca3)
+For execution on a local, multicore CPU with excess RAM we recommend calling
+options(mc.cores = parallel::detectCores()).
+To avoid recompilation of unchanged Stan programs, we recommend calling
+rstan_options(auto_write = TRUE)
+> rstan_options(auto_write = FALSE)
+> gam.mles.data <- function(x){
++   # CALCULATION OF THE MLES for gamma  GIVEN THE SAMPLE
++   n <- length(x)
++   xb <- mean(x)
++   xd <- mean(log(x))
++   s <- log(xb)-xd
++   a0 <- (3.0-s+sqrt((s-3.0)^2+24.0*s))/12.0/s
++   l <- 1
++   repeat{
++     ans <- (log(a0)-digamma(a0)-s)
++     a1 <- a0-ans/(1.0/a0-trigamma(a0))
++     if(abs(ans) <= 1.0e-7 | l >= 30){break}
++     a0 <- a1
++     l <- l+1}
++   ah <- a1; bh <- xb/a1
++   return(c(ah,bh))
++ }
+> 
+> #Computing prior hyperparameters for beta, the size effect
+> prior_empBayes_forbeta <- function(xs,ys,zs){
++   #Function to compute the hyperparameters of the gamma distribution for
++   #beta_1,...beta_K~beta(a_beta,b_beta) with b_beta~gamma(a_b_beta,b_b_beta)
++   bbeta_est <- (xs+ys+zs)/2
++   bbeta_est[which(bbeta_est==0)] <- 0.1
++   tem <- gam.mles.data(bbeta_est) #MLE of the gamma function but it is parameterized so that E(x)=ab if x~gamma(a,b)
++   tem[1] <- min(max(tem[1],10^(-3)),10^5)
++   tem[2] <- min(max(tem[2],10^(-3)),10^5)  #Our gamma parameterization is E(x)=a/b
++   a_beta <- tem[1]
++   a_b_beta <- 2*tem[2]^(-1)#
++   b_b_beta <- 2
++   return(list(a_beta=a_beta, a_b_beta=a_b_beta, b_b_beta=b_b_beta))
++ }
+> 
+> library(tidyverse)
+── Attaching packages ─────────────────────────────────────── tidyverse 1.3.0 ──
+✔ tibble  3.0.4     ✔ dplyr   1.0.2
+✔ tidyr   1.1.2     ✔ stringr 1.4.0
+✔ readr   1.4.0     ✔ forcats 0.5.0
+✔ purrr   0.3.4     
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ tidyr::extract() masks rstan::extract()
+✖ dplyr::filter()  masks stats::filter()
+✖ dplyr::lag()     masks stats::lag()
+> mydata <- as_tibble(read.csv(data.file))
+> 
+> for (gene in 1:nrow(mydata))
++ {
++   
++   nreps <- mydata[gene,] %>% dplyr::select(ends_with("num_reps"))
++   nconditions <- length(nreps)            #Number of environments
++   seqI<-nreps
++   allI<-as.vector(seqI)  
++   cat("seqI is")
++   print(seqI)
++   
++   xs <- unlist(mydata[gene,] %>% dplyr::select(starts_with("counts")) %>% dplyr::select(contains("g1")))
++   ys <- unlist(mydata[gene,] %>% dplyr::select(starts_with("counts")) %>% dplyr::select(contains("g2")))
++   zs <- unlist(mydata[gene,] %>% dplyr::select(starts_with("counts")) %>% dplyr::select(contains("both")))
++   xactiveflag <- unlist(mydata[gene,] %>% dplyr::select(contains("flag_analyze")))
++   print(xs)
++   print(ys)
++   print(zs)
++   #If at least one flaganalyze is 0 we fill the results wiht NA and go to the next
++   if(prod(xactiveflag)==0)
++   {
++     howmanyNA<-length(unlist(strsplit(headers_out,",")))-2
++ 	out=paste("line", "fusion_id", rep(NA,howmanyNA,collapse=","),sep=",")
++   cat(out,file=fileout,append=TRUE,sep="\n")
++   next
++   }
++   q_sim <- matrix(unlist((mydata[gene, ]%>% dplyr::select(starts_with("prior")))), nrow=length(nreps), byrow =TRUE, ncol=2)
++   
++   hyper_beta <- prior_empBayes_forbeta(xs, ys, zs)
++   #Making the data ready for stan
++   datastan <- list(K = sum(seqI),                 #Total number of bioresps
++ 	    n_environment = nconditions,         #Number of environments, so far 2.
++ 	    xenv = rep(seq(1,length(seqI)),seqI),       #Environment index 
++ 	    xs = as.vector(xs),
++ 	    ys = as.vector(ys),
++ 	    zs = as.vector(zs),
++ 	    r = q_sim,  #matrix of systematic bias corrections
++ 	    a_beta = hyper_beta$a_beta,               #Set to MLE under the null model
++ 	    a_b_beta = hyper_beta$a_b_beta,           #b_beta~gamma(a_b_beta,b_b_beta)
++ 	    b_b_beta = hyper_beta$b_b_beta,
++ 	    a_overdispersion = 2.01,#1,
++ 	    b_overdispersion = 0.05 #100, #phi is apriori small, if inverse gamma is used prior mean b_phi/(a_phi-1)
++ 	 )
++   
++   starting_values  <-  function(){ ###Not actually needed according to Luis
++     out <- with(datastan, list(overdispersion=0.01, bbeta=xs+ys+zs, alpha=rep(1.0,n_environment)))
++     return(out)
++   }
++ 
++ 	totalcounts=
++ 	rbind(
++ 	xs=tapply(datastan$xs,FUN=sum,INDEX=datastan$xenv),
++ 	ys=tapply(datastan$ys,FUN=sum,INDEX=datastan$xenv),
++ 	zs=tapply(datastan$zs,FUN=sum,INDEX=datastan$xenv)
++ 	)
++   
++   cat("datastan is")
++   print(datastan)
++ 
++   fit1 <-rstan::stan(
++     file = "environmentalmodel2.stan", # Stan program
++ 	  data = datastan,    # named list of data
++ 	  chains = 1,             # number of Markov chains
++ 	  warmup = nburnin,          # number of warmup iterations per chain
++ 	  thin = save.sample.freq,
++ 	  iter = niter,            # total number of iterations per chain
++ 	  refresh = reporting.freq,             # no progress shown if this is 0
++ 	  init = "starting_values",
++ 	  control = list(adapt_delta = stepsize)  # The bigger the value the smaller the step size
++ 	  #pars=c("alpha","sigma_alpha")
++ 	  #c("bbeta","alpha","overdispersion","theta","sigma_alpha") 
++    )
++ 	
++    # fig.dir <- paste0(unlist(strsplit(out.dir, "/g3_sim_output"))[1], "/data_visualization")
++    # jpeg(paste0(fig.dir,"/diagnostic_plots_stan4c_", gsub(".csv", "", tail(unlist(strsplit(fileout, "/")), 1)),".jpeg"))
++    # rstan::pairs(fit1)
++    # dev.off()
++   
++   theta<-rstan::extract(fit1,pars="theta")$theta #Estimated proportion of reads aligning to tester in mated after adjusting for systematic bias
++   alpha<-rstan::extract(fit1,pars=c("alpha"))$alpha
++   Stanresults=matrix(NA,nrow=nconditions,ncol=4)
++   Bayes_AI_pvalue<-rep(NA,nconditions)
++   for(mystan in 1:nrow(Stanresults)) {
++     theta1<-theta[,mystan]
++     alpha1<-alpha[,mystan]
++     Stanresults[mystan,]<-c(mean(theta1), quantile(theta1,c(0.025,0.975)),2*min(mean(theta1>1/2),mean(theta1<1/2))) 
++     Bayes_AI_pvalue[mystan]<-2*min(c(mean(alpha1>1),mean(alpha1<1)))
++   }
++   colnames(Stanresults)=c("mean","q_025","q_975","AIbayesian-pva")
++   cat("Stanresults",Stanresults,"\n")
++   Stanresults[,"AIbayesian-pva"]
++   
++   for(repcond in 1:nconditions) {
++     theta1<-theta[,repcond]
++     smallStanres<-paste(round(totalcounts[row.names(totalcounts)=="xs",repcond]/(totalcounts[row.names(totalcounts)=="xs",repcond]+totalcounts[row.names(totalcounts)=="ys",repcond]),4),
++                         round(mean(theta1),4),
++                         paste(round(quantile(theta1,c(0.025,0.975)),4),collapse=","),
++                         round(Bayes_AI_pvalue[repcond],4),
++                         ifelse(Bayes_AI_pvalue[repcond]<0.05,1,0),sep=",")
++     if(repcond==1) fullStanres<-smallStanres else fullStanres<-paste(fullStanres,smallStanres,sep=",",collapse=",")
++   }
++   alpha1greateralpha2<-NA 
++   #alpha1greateralpha2 is the bayesian independence test. Only meaningful for two conditions
++   if(nconditions==2) {
++     alpha1greateralpha2<-round(min(mean(alpha[,1]>alpha[,2]),mean(alpha[,1]<alpha[,2]))*2,4)
++   }
++   
++   out=paste("line", "fusion_id", paste(allI,collapse=","), 
++             paste(apply(totalcounts,2,paste,collapse=","),collapse=","),
++             paste(t(datastan$r),collapse=","),
++             alpha1greateralpha2,
++             fullStanres,
++             paste(round(apply(alpha,2,mean),4),collapse=","),
++ 			paste(xactiveflag,collapse=","),
++             sep=",")
++   print(xactiveflag)
++   cat(out,file=fileout,append=TRUE,sep="\n")
++   print(unlist(strsplit(headers_out,",")))
++   print(unlist(strsplit(out,",")))
++ }
+seqI is# A tibble: 1 x 1
+  c1_num_reps
+        <int>
+1           3
+counts_c1_g1_rep1 counts_c1_g1_rep2 counts_c1_g1_rep3 
+               99               127                77 
+counts_c1_g2_rep1 counts_c1_g2_rep2 counts_c1_g2_rep3 
+               28                27                22 
+counts_c1_both_rep1 counts_c1_both_rep2 counts_c1_both_rep3 
+                106                 144                  97 
+datastan is$K
+[1] 3
+
+$n_environment
+[1] 1
+
+$xenv
+[1] 1 1 1
+
+$xs
+[1]  99 127  77
+
+$ys
+[1] 28 27 22
+
+$zs
+[1] 106 144  97
+
+$r
+     [,1] [,2]
+[1,]  0.5  0.5
+
+$a_beta
+[1] 33.72591
+
+$a_b_beta
+[1] 0.5566862
+
+$b_b_beta
+[1] 2
+
+$a_overdispersion
+[1] 2.01
+
+$b_overdispersion
+[1] 0.05
+
+
+SAMPLING FOR MODEL 'environmentalmodel2' NOW (CHAIN 1).
+Chain 1: 
+Chain 1: Gradient evaluation took 3.8e-05 seconds
+Chain 1: 1000 transitions using 10 leapfrog steps per transition would take 0.38 seconds.
+Chain 1: Adjust your expectations accordingly!
+Chain 1: 
+Chain 1: 
+Chain 1: Iteration:    1 / 6000 [  0%]  (Warmup)
+Chain 1: Iteration: 1000 / 6000 [ 16%]  (Warmup)
+Chain 1: Iteration: 2000 / 6000 [ 33%]  (Warmup)
+Chain 1: Iteration: 3000 / 6000 [ 50%]  (Warmup)
+Chain 1: Iteration: 3001 / 6000 [ 50%]  (Sampling)
+Chain 1: Iteration: 4000 / 6000 [ 66%]  (Sampling)
+Chain 1: Iteration: 5000 / 6000 [ 83%]  (Sampling)
+Chain 1: Iteration: 6000 / 6000 [100%]  (Sampling)
+Chain 1: 
+Chain 1:  Elapsed Time: 0.184985 seconds (Warm-up)
+Chain 1:                0.207708 seconds (Sampling)
+Chain 1:                0.392693 seconds (Total)
+Chain 1: 
+Stanresults 0.7666854 0.7004725 0.8220035 0 
+c1_flag_analyze 
+              1 
+ [1] "comparison"                     "FEATURE_ID"                    
+ [3] "c1_num_reps"                    "counts_c1_g1"                  
+ [5] "counts_c1_g2"                   "counts_c1_both"                
+ [7] "prior_c1_g1"                    "prior_c1_g2"                   
+ [9] "H3_independence_Bayes_evidence" "g1_c1_sampleprop"              
+[11] "g1_c1_mean"                     "g1_c1_q025"                    
+[13] "g1_c1_q975"                     "g1_c1_Bayes_evidence"          
+[15] "g1_c1_AI_decision"              "alpha1_postmean"               
+[17] "c1_flag_analyze"               
+ [1] "line"      "fusion_id" "3"         "303"       "77"        "347"      
+ [7] "0.5"       "0.5"       "NA"        "0.7974"    "0.7667"    "0.7005"   
+[13] "0.822"     "0"         "1"         "0.5515"    "1"        
+seqI is# A tibble: 1 x 1
+  c1_num_reps
+        <int>
+1           3
+counts_c1_g1_rep1 counts_c1_g1_rep2 counts_c1_g1_rep3 
+              118               136                60 
+counts_c1_g2_rep1 counts_c1_g2_rep2 counts_c1_g2_rep3 
+               15                21                26 
+counts_c1_both_rep1 counts_c1_both_rep2 counts_c1_both_rep3 
+                149                 110                  93 
+datastan is$K
+[1] 3
+
+$n_environment
+[1] 1
+
+$xenv
+[1] 1 1 1
+
+$xs
+[1] 118 136  60
+
+$ys
+[1] 15 21 26
+
+$zs
+[1] 149 110  93
+
+$r
+     [,1] [,2]
+[1,]  0.5  0.5
+
+$a_beta
+[1] 25.79576
+
+$a_b_beta
+[1] 0.4252048
+
+$b_b_beta
+[1] 2
+
+$a_overdispersion
+[1] 2.01
+
+$b_overdispersion
+[1] 0.05
+
+
+SAMPLING FOR MODEL 'environmentalmodel2' NOW (CHAIN 1).
+Chain 1: 
+Chain 1: Gradient evaluation took 1.6e-05 seconds
+Chain 1: 1000 transitions using 10 leapfrog steps per transition would take 0.16 seconds.
+Chain 1: Adjust your expectations accordingly!
+Chain 1: 
+Chain 1: 
+Chain 1: Iteration:    1 / 6000 [  0%]  (Warmup)
+Chain 1: Iteration: 1000 / 6000 [ 16%]  (Warmup)
+Chain 1: Iteration: 2000 / 6000 [ 33%]  (Warmup)
+Chain 1: Iteration: 3000 / 6000 [ 50%]  (Warmup)
+Chain 1: Iteration: 3001 / 6000 [ 50%]  (Sampling)
+Chain 1: Iteration: 4000 / 6000 [ 66%]  (Sampling)
+Chain 1: Iteration: 5000 / 6000 [ 83%]  (Sampling)
+Chain 1: Iteration: 6000 / 6000 [100%]  (Sampling)
+Chain 1: 
+Chain 1:  Elapsed Time: 0.210621 seconds (Warm-up)
+Chain 1:                0.221375 seconds (Sampling)
+Chain 1:                0.431996 seconds (Total)
+Chain 1: 
+Stanresults 0.7828781 0.6825595 0.8462425 0 
+c1_flag_analyze 
+              1 
+ [1] "comparison"                     "FEATURE_ID"                    
+ [3] "c1_num_reps"                    "counts_c1_g1"                  
+ [5] "counts_c1_g2"                   "counts_c1_both"                
+ [7] "prior_c1_g1"                    "prior_c1_g2"                   
+ [9] "H3_independence_Bayes_evidence" "g1_c1_sampleprop"              
+[11] "g1_c1_mean"                     "g1_c1_q025"                    
+[13] "g1_c1_q975"                     "g1_c1_Bayes_evidence"          
+[15] "g1_c1_AI_decision"              "alpha1_postmean"               
+[17] "c1_flag_analyze"               
+ [1] "line"      "fusion_id" "3"         "314"       "62"        "352"      
+ [7] "0.5"       "0.5"       "NA"        "0.8351"    "0.7829"    "0.6826"   
+[13] "0.8462"    "0"         "1"         "0.5263"    "1"        
+> 
+are_q_equal Y
+qsim1 0.5
+qmodel1 0.5
+
+R version 3.6.3 (2020-02-29) -- "Holding the Windsock"
+Copyright (C) 2020 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> what.to.do <- (commandArgs(TRUE))
+> if(length(what.to.do)>0)
++ {
++   data.file <- as.character(as.character(unlist(strsplit(what.to.do[1],"="))[2]))
++   q.model.g1 <- as.numeric(as.character(unlist(strsplit(what.to.do[2],"="))[2]))
++   q.model.g2 <- as.numeric(unlist(strsplit(what.to.do[3],"="))[2])
++   stan.program <- as.character(unlist(strsplit(what.to.do[4],"="))[2])
++   niter <- as.numeric(as.character(unlist(strsplit(what.to.do[5],"="))[2]))
++   nburnin <- as.numeric(as.character(unlist(strsplit(what.to.do[6],"="))[2]))
++   save.sample.freq <- as.numeric(as.character(unlist(strsplit(what.to.do[7],"="))[2]))
++   reporting.freq <- as.numeric(as.character(unlist(strsplit(what.to.do[8],"="))[2]))
++   stepsize <- as.numeric(as.character(unlist(strsplit(what.to.do[9],"="))[2]))
++   nconditions<- as.numeric(as.character(unlist(strsplit(what.to.do[10],"="))[2]))
++ }
+> 
+> out.dir <- dirname(data.file)
+> print(out.dir)
+[1] "/blue/mcintyre/fabio.marroni/git_BASE_2020/BASE_2020/simulation//g3_sim_output/H1_not_null_H2_not_null_H3_not_null"
+> 
+> base.out<-paste(gsub(".csv","",basename(data.file)), 
++                                  stan.program,
++                                  'qmodel_g1', q.model.g1, 'qmodel_g2', q.model.g2, 
++                                  'iterations', niter, 'burnin', nburnin, 
++                                  'thin', save.sample.freq, 'refresh', reporting.freq, 
++                                  'stepsize', stepsize, sep="_")
+> fileout <- paste(paste(out.dir, base.out, sep = "/"),".csv",sep="")
+> print(fileout)
+[1] "/blue/mcintyre/fabio.marroni/git_BASE_2020/BASE_2020/simulation//g3_sim_output/H1_not_null_H2_not_null_H3_not_null/out_alpha_0.5_delta_0.5_qsim_g1_0.5_qsim_g2_0.5_mult_1_myreads_100_simruns_2_stan4c_qmodel_g1_0.5_qmodel_g2_0.5_iterations_6000_burnin_3000_thin_1_refresh_1000_stepsize_0.99.csv"
+> 
+> #########################
+> #Trying to generalize to an arbitrary number of conditions
+> #########################
+> 
+> seqcond<-paste("c",seq(1,nconditions),sep="")
+> fornames1=paste("g1_",seqcond,sep="") #Tester given condition
+> fornames2 <- c("sampleprop", "mean", "q025", "q975", "Bayes_evidence", "AI_decision")
+> fornames=paste(paste(rep(fornames1,each=length(fornames2)),fornames2,sep="_"),collapse=",")
+> #The three possible alignment states: better to tester (G1?), better to line (G2?), equally good (both).
+> #alnto<-c("g1","g2","Both")
+> counttester<-paste("counts_",seqcond,"_g1",sep="")
+> countline<-paste("counts_",seqcond,"_g2",sep="")
+> countboth<-paste("counts_",seqcond,"_both",sep="")
+> countheader<-paste(counttester,countline,countboth,sep=",",collapse=",")
+> priorstester<-paste("prior_",seqcond,"_g1",sep="")
+> priorsline<-paste("prior_",seqcond,"_g2",sep="")
+> allpriors<-sort(c(priorstester,priorsline))
+> seqreps<-paste(seqcond,"_num_reps",sep="")
+> activeflag<-paste(seqcond,"flag_analyze",sep="_")
+> firstheaders=paste(c("comparison","FEATURE_ID",
++                      seqreps,
++                      countheader,
++                       allpriors, 
++ 					  "H3_independence_Bayes_evidence",
++ 					  "probofsameAI"),
++                       collapse=",")
+> 
+> alpha_post_names<-paste(paste("alpha",seq(1,nconditions),"_postmean",sep=""),collapse=",")
+> cat("alpha names are:",alpha_post_names,"\n")
+alpha names are: alpha1_postmean 
+> cat("stan4 firstheaders are:",firstheaders,"\n")
+stan4 firstheaders are: comparison,FEATURE_ID,c1_num_reps,counts_c1_g1,counts_c1_g2,counts_c1_both,prior_c1_g1,prior_c1_g2,H3_independence_Bayes_evidence,probofsameAI 
+> headers_out=paste(firstheaders,fornames,alpha_post_names,"sigma_alpha_mean","sigma_alpha_0.5","sigma_alpha_0.95",paste(activeflag,collapse=","),sep=",")
+> cat("stan4 headers_out is:",headers_out,"\n")
+stan4 headers_out is: comparison,FEATURE_ID,c1_num_reps,counts_c1_g1,counts_c1_g2,counts_c1_both,prior_c1_g1,prior_c1_g2,H3_independence_Bayes_evidence,probofsameAI,g1_c1_sampleprop,g1_c1_mean,g1_c1_q025,g1_c1_q975,g1_c1_Bayes_evidence,g1_c1_AI_decision,alpha1_postmean,sigma_alpha_mean,sigma_alpha_0.5,sigma_alpha_0.95,c1_flag_analyze 
+> cat(headers_out,file=fileout,append=FALSE,sep="\n")
+> 
+> 
+> #End of arguments and names copied from the scripts used for the analysis of real data
+> 
+> #The special thing about this function is that it is able to accept a multiplicative factor for the estimation of the reads aligning on both genomes, to see how misspecification of that quantity affects results
+> options(warn=1)
+> 
+> library("rstan")
+Loading required package: StanHeaders
+Loading required package: ggplot2
+rstan (Version 2.21.2, GitRev: 2e1f913d3ca3)
+For execution on a local, multicore CPU with excess RAM we recommend calling
+options(mc.cores = parallel::detectCores()).
+To avoid recompilation of unchanged Stan programs, we recommend calling
+rstan_options(auto_write = TRUE)
+> rstan_options(auto_write = FALSE)
+> gam.mles.data <- function(x){
++   # CALCULATION OF THE MLES for gamma  GIVEN THE SAMPLE
++   n <- length(x)
++   xb <- mean(x)
++   xd <- mean(log(x))
++   s <- log(xb)-xd
++   a0 <- (3.0-s+sqrt((s-3.0)^2+24.0*s))/12.0/s
++   l <- 1
++   repeat{
++     ans <- (log(a0)-digamma(a0)-s)
++     a1 <- a0-ans/(1.0/a0-trigamma(a0))
++     if(abs(ans) <= 1.0e-7 | l >= 30){break}
++     a0 <- a1
++     l <- l+1}
++   ah <- a1; bh <- xb/a1
++   return(c(ah,bh))
++ }
+> 
+> #Computing prior hyperparameters for beta, the size effect
+> prior_empBayes_forbeta <- function(xs,ys,zs){
++   #Function to compute the hyperparameters of the gamma distribution for
++   #beta_1,...beta_K~beta(a_beta,b_beta) with b_beta~gamma(a_b_beta,b_b_beta)
++   bbeta_est <- (xs+ys+zs)/2
++   bbeta_est[which(bbeta_est==0)] <- 0.1
++   tem <- gam.mles.data(bbeta_est) #MLE of the gamma function but it is parameterized so that E(x)=ab if x~gamma(a,b)
++   tem[1] <- min(max(tem[1],10^(-3)),10^5)
++   tem[2] <- min(max(tem[2],10^(-3)),10^5)  #Our gamma parameterization is E(x)=a/b
++   a_beta <- tem[1]
++   a_b_beta <- 2*tem[2]^(-1)#
++   b_b_beta <- 2
++   return(list(a_beta=a_beta, a_b_beta=a_b_beta, b_b_beta=b_b_beta))
++ }
+> 
+> library(tidyverse)
+── Attaching packages ─────────────────────────────────────── tidyverse 1.3.0 ──
+✔ tibble  3.0.4     ✔ dplyr   1.0.2
+✔ tidyr   1.1.2     ✔ stringr 1.4.0
+✔ readr   1.4.0     ✔ forcats 0.5.0
+✔ purrr   0.3.4     
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ tidyr::extract() masks rstan::extract()
+✖ dplyr::filter()  masks stats::filter()
+✖ dplyr::lag()     masks stats::lag()
+> mydata <- as_tibble(read.csv(data.file))
+> 
+> for (gene in 1:nrow(mydata))
++ {
++   
++   nreps <- mydata[gene,] %>% dplyr::select(ends_with("num_reps"))
++   nconditions <- length(nreps)            #Number of environments
++   seqI<-nreps
++   allI<-as.vector(seqI)  
++   cat("seqI is")
++   print(seqI)
++  
++   xs <- unlist(mydata[gene,] %>% dplyr::select(starts_with("counts")) %>% dplyr::select(contains("g1")))
++   ys <- unlist(mydata[gene,] %>% dplyr::select(starts_with("counts")) %>% dplyr::select(contains("g2")))
++   zs <- unlist(mydata[gene,] %>% dplyr::select(starts_with("counts")) %>% dplyr::select(contains("both")))
++   xactiveflag <- unlist(mydata[gene,] %>% dplyr::select(contains("flag_analyze")))
++   print(xs)
++   print(ys)
++   print(zs)
++   #If at least one flaganalyze is 0 we fill the results wiht NA and go to the next
++   if(prod(xactiveflag)==0)
++   {
++     howmanyNA<-length(unlist(strsplit(headers_out,",")))-2
++ 	out=paste("line", "fusion_id", rep(NA,howmanyNA,collapse=","),sep=",")
++     cat(out,file=fileout,append=TRUE,sep="\n")
++     next
++   }
++   q_sim <- matrix(unlist((mydata[gene, ]%>% dplyr::select(starts_with("prior")))), nrow=length(nreps), byrow =TRUE, ncol=2)
++   
++   hyper_beta <- prior_empBayes_forbeta(xs, ys, zs)
++   #Making the data ready for stan
++   datastan <- list(K = sum(seqI),                 #Total number of bioresps
++ 	    n_environment = nconditions,         #Number of environments, so far 2.
++ 	    xenv = rep(seq(1,length(seqI)),seqI),       #Environment index 
++ 	    xs = as.vector(xs),
++ 	    ys = as.vector(ys),
++ 	    zs = as.vector(zs),
++ 	    r = q_sim,  #matrix of systematic bias corrections
++ 	    a_beta = hyper_beta$a_beta,               #Set to MLE under the null model
++ 	    a_b_beta = hyper_beta$a_b_beta,           #b_beta~gamma(a_b_beta,b_b_beta)
++ 	    b_b_beta = hyper_beta$b_b_beta,
++ 	    a_overdispersion = 2.01,#1,
++ 	    b_overdispersion = 0.05 #100, #phi is apriori small, if inverse gamma is used prior mean b_phi/(a_phi-1)
++ 	 )
++   
++   starting_values  <-  function(){ ###Not actually needed according to Luis
++     out <- with(datastan, list(overdispersion=0.01, bbeta=xs+ys+zs, alpha=rep(1.0,n_environment)))
++     return(out)
++   }
++ 
++ 	totalcounts=
++ 	rbind(
++ 	xs=tapply(datastan$xs,FUN=sum,INDEX=datastan$xenv),
++ 	ys=tapply(datastan$ys,FUN=sum,INDEX=datastan$xenv),
++ 	zs=tapply(datastan$zs,FUN=sum,INDEX=datastan$xenv)
++ 	)
++   
++   datastan4c <- datastan
++   datastan4c$c_sigma_alpha <- c(NA,0.01760,0.01472,0.01343,0.01265 )[datastan4c$n_environment]#Constants depends on number of environments
++   cat("datastan is")
++   print(datastan4c)
++ 
++   fit1 <-rstan::stan(
++     file = "environmentalmodel4c.stan", # Stan program
++ 	  data = datastan4c,    # named list of data
++ 	  chains = 1,             # number of Markov chains
++ 	  warmup = nburnin,          # number of warmup iterations per chain
++ 	  thin = save.sample.freq,
++ 	  iter = niter,            # total number of iterations per chain
++ 	  refresh = reporting.freq,             # no progress shown
++ 	  init = "starting_values",
++ 	  control = list(adapt_delta = stepsize)  # The bigger the value the smaller the step size
++ 	  #pars=c("alpha","sigma_alpha")
++ 	  #c("bbeta","alpha","overdispersion","theta","sigma_alpha") 
++    )
++ 	
++    # fig.dir <- paste0(unlist(strsplit(out.dir, "/g3_sim_output"))[1], "/data_visualization")
++    # jpeg(paste0(fig.dir,"/diagnostic_plots_stan4c_", gsub(".csv", "", tail(unlist(strsplit(fileout, "/")), 1)),".jpeg"))
++    # rstan::pairs(fit1)
++    # dev.off()
++   
++ 	palphasequal <- rstan::extract(fit1,pars=c("palphasequal"))$palphasequal
++ 	theta <- rstan::extract(fit1,pars="theta")$theta #Estimated proportion of reads aligning to tester in mated after adjusting for systematic bias
++ 	alpha <- rstan::extract(fit1,pars=c("alpha"))$alpha
++ 	sigma_alpha <- rstan::extract(fit1,pars=c("sigma_alpha"))$sigma_alpha
++ 	
++ 	Stanresults <- matrix(NA,nrow=nconditions,ncol=4)
++ 	Bayes_AI_pvalue <- rep(NA,nconditions)
++ 	for(mystan in 1:nrow(Stanresults)) {
++ 	  theta1 <- theta[,mystan]
++ 	  alpha1 <- alpha[,mystan]
++     Stanresults[mystan,]<-c(mean(theta1), quantile(theta1,c(0.025,0.975)),2*min(mean(theta1>1/2),mean(theta1<1/2))) 
++ 	Bayes_AI_pvalue[mystan] <- 2*min(c(mean(alpha1>1), mean(alpha1<1)))
++ 	} 
++ 	
++ 	colnames(Stanresults) <- c("mean", "q_025", "q_975", "AIbayesian-pval")
++ 	cat("Stanresults",Stanresults,"\n")
++ 	Stanresults[,"AIbayesian-pval"]
++ 
++ 	sigma_alpha_out <- c(mean(sigma_alpha), quantile(sigma_alpha, c(0.5,0.95))) #POSSIBLE bug: c(0.5,0.95) or c(0.05,0.95)? 
++ 
++ 	for(repcond in 1:nconditions) {
++ 	  theta1 <- theta[,repcond]
++ 	  smallStanres <- paste(round(totalcounts[row.names(totalcounts)=="xs", repcond]/(totalcounts[row.names(totalcounts)=="xs", repcond] + totalcounts[row.names(totalcounts)=="ys", repcond]), 4),
++ 	                        round(mean(theta1), 4),
++ 	                        paste(round(quantile(theta1, c(0.025,0.975)), 4), collapse=","),
++ 	                        round(Bayes_AI_pvalue[repcond], 4), 
++ 	                        ifelse(Bayes_AI_pvalue[repcond] < 0.05, 1, 0), sep=",")
++ 	  if(repcond==1) fullStanres <- smallStanres else fullStanres <- paste(fullStanres, smallStanres, sep=",", collapse=",")
++ 	}
++ 	
++ 	alpha1greateralpha2 <- NA
++ 	#alpha1greateralpha2 is the bayesian independence test. Only meaningful for two conditions
++ 	if(nconditions==2) {
++ 	  alpha1greateralpha2 <- min(tem<-mean(alpha[,1]-alpha[,2]<0),1-tem)*2
++ 	}
++ 
++ 	probofsameAI <- mean(palphasequal)    
++ 	
++ 	totalcounts <- rbind(xs <- tapply(datastan$xs, FUN=sum, INDEX=datastan$xenv),
++ 	                     ys <- tapply(datastan$ys, FUN=sum, INDEX=datastan$xenv),
++ 	                     zs <- tapply(datastan$zs, FUN=sum, INDEX=datastan$xenv))
++ 	
++ 	out <- paste("line", "fusion_id", paste(allI,collapse=","),
++ 	             paste(apply(totalcounts, 2, paste, collapse=","), collapse=","),
++ 				 paste(t(datastan$r),collapse=","),
++ 	             alpha1greateralpha2,
++ 	             probofsameAI,
++ 	             fullStanres,
++ 	             paste(round(apply(alpha,2,mean),4),collapse=","),
++ 	             paste(round(sigma_alpha_out,6),collapse=","),
++ 				 paste(xactiveflag,collapse=","),
++ 	             sep=",")
++     print(xactiveflag)
++ 	cat(out, file=fileout, append=TRUE, sep="\n")
++     print(unlist(strsplit(headers_out,",")))
++     print(unlist(strsplit(out,",")))
++ 
++ }
+seqI is# A tibble: 1 x 1
+  c1_num_reps
+        <int>
+1           3
+counts_c1_g1_rep1 counts_c1_g1_rep2 counts_c1_g1_rep3 
+               99               127                77 
+counts_c1_g2_rep1 counts_c1_g2_rep2 counts_c1_g2_rep3 
+               28                27                22 
+counts_c1_both_rep1 counts_c1_both_rep2 counts_c1_both_rep3 
+                106                 144                  97 
+datastan is$K
+[1] 3
+
+$n_environment
+[1] 1
+
+$xenv
+[1] 1 1 1
+
+$xs
+[1]  99 127  77
+
+$ys
+[1] 28 27 22
+
+$zs
+[1] 106 144  97
+
+$r
+     [,1] [,2]
+[1,]  0.5  0.5
+
+$a_beta
+[1] 33.72591
+
+$a_b_beta
+[1] 0.5566862
+
+$b_b_beta
+[1] 2
+
+$a_overdispersion
+[1] 2.01
+
+$b_overdispersion
+[1] 0.05
+
+$c_sigma_alpha
+[1] NA
+
+Error in FUN(X[[i]], ...) : 
+  Stan does not support NA (in c_sigma_alpha) in data
+failed to preprocess the data; sampling not done
+Stan model 'environmentalmodel4c' does not contain samples.
+Stan model 'environmentalmodel4c' does not contain samples.
+Stan model 'environmentalmodel4c' does not contain samples.
+Stan model 'environmentalmodel4c' does not contain samples.
+Warning in mean.default(theta1) :
+  argument is not numeric or logical: returning NA
+Stanresults NA NA NA NaN 
+Warning in mean.default(sigma_alpha) :
+  argument is not numeric or logical: returning NA
+Warning in mean.default(theta1) :
+  argument is not numeric or logical: returning NA
+Warning in mean.default(palphasequal) :
+  argument is not numeric or logical: returning NA
+Error in apply(alpha, 2, mean) : dim(X) must have a positive length
+Calls: paste -> paste -> apply
+Execution halted
+
+R version 3.6.3 (2020-02-29) -- "Holding the Windsock"
+Copyright (C) 2020 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> what.to.do <- (commandArgs(TRUE))
+> if(length(what.to.do)>0)
++ {
++   my.alpha <- as.numeric(as.character(unlist(strsplit(what.to.do[1],"="))[2]))
++ 	my.delta <- as.numeric(as.character(unlist(strsplit(what.to.do[2],"="))[2]))
++ 	my.qtest <- as.numeric(as.character(unlist(strsplit(what.to.do[3],"="))[2]))
++ 	my.qline <- as.numeric(as.character(unlist(strsplit(what.to.do[4],"="))[2]))
++ 	mult <- as.numeric(as.character(unlist(strsplit(what.to.do[5],"="))[2]))
++ 	myreads <- as.numeric(as.character(unlist(strsplit(what.to.do[6],"="))[2]))
++ 	simruns <- as.numeric(as.character(unlist(strsplit(what.to.do[7],"="))[2]))
++ 	out.file <- as.character(as.character(unlist(strsplit(what.to.do[8],"="))[2]))
++     nconditions<- as.numeric(as.character(unlist(strsplit(what.to.do[9],"="))[2]))
++ 
++ }
+> 
+> #It is horrible I know!
+> #Temporarily we hardcode the number of replicates
+> nreps<-3
+> 
+> #Removed set.seed(0) because always gave the same result!!!!!
+> #set.seed(0)
+> 
+> #Delta is like alpha, but in the second environment (i.e. delta=1 is no AI in ENV2)
+> 
+> 
+> ###################################################
+> #
+> # Try to generalize for n environments
+> #
+> ###################################################
+> 
+> seqcond<-paste("c",seq(1,nconditions),sep="")
+> 
+> 
+> repsuffix<-paste0("_rep",seq(1,nreps))
+> fornames1=paste("g1_",seqcond,sep="") #Genotype 1 given condition number
+> fornames2 <- c("sampleprop", "mean", "q025", "q975", "Bayes_evidence", "AI_decision")
+> fornames=paste(paste(rep(fornames1,each=length(fornames2)),fornames2,sep="_"),collapse=",")
+> #The three possible alignment states: better to tester (G1?), better to line (G2?), equally good (both).
+> #alnto<-c("g1","g2","Both")
+> counttester<-as.vector(sapply(paste("counts_",seqcond,"_g1",sep=""),paste0,repsuffix))
+> countline<-as.vector(sapply(paste("counts_",seqcond,"_g2",sep=""),paste0,repsuffix))
+> countboth<-as.vector(sapply(paste("counts_",seqcond,"_both",sep=""),paste0,repsuffix))
+> countheader<-paste(counttester,countline,countboth,sep=",",collapse=",")
+> priorstester<-paste("prior_",seqcond,"_g1",sep="")
+> priorsline<-paste("prior_",seqcond,"_g2",sep="")
+> allpriors<-sort(c(priorstester,priorsline))
+> seqreps<-paste(seqcond,"_num_reps",sep="")
+> activeflag<-paste(seqcond,"flag_analyze",sep="_")
+> firstheaders=paste(c("comparison","FEATURE_ID",
++                      seqreps,
++                      countheader,
++                       allpriors,
++ 					  activeflag),
++                       collapse=",")
+> print(unlist(strsplit(firstheaders,",")))
+ [1] "comparison"          "FEATURE_ID"          "c1_num_reps"        
+ [4] "counts_c1_g1_rep1"   "counts_c1_g2_rep1"   "counts_c1_both_rep1"
+ [7] "counts_c1_g1_rep2"   "counts_c1_g2_rep2"   "counts_c1_both_rep2"
+[10] "counts_c1_g1_rep3"   "counts_c1_g2_rep3"   "counts_c1_both_rep3"
+[13] "prior_c1_g1"         "prior_c1_g2"         "c1_flag_analyze"    
+> headers<-firstheaders
+> cat(headers, file=out.file, append=FALSE, sep="\n")
+> 
+> 
+> #End of arguments and names copied from the scripts used for the analysis of real data
+> 
+> 
+> 
+> ##################################
+> #
+> # Simulation
+> #
+> ##################################
+> print(simruns)
+[1] 2
+> for (aaa in 1:simruns)
++ {
++   #It simulates data according to a specific model (I need to check wich one)
++   #and compares the inference for different versions of the model
++   #
++   #Parameters of true model
++   allI<-rep(nreps,nconditions) #Number of replicates in each environment (we are currentyl stuck to having the same number of reps in the environments)
++   true_betas_row1 <- c(1,1.2,0.7)*myreads   #These are the biorep effets, the beta_i s
++   #At present we use true_betas that do not vary across conditions. This may be changed in the future
++   #When we were fixed to 2 environments we used different betas
++   true_betas_row2 <- c(1,1.3,0.8)*myreads
++   true_alpha <- my.alpha            #if different from 1 AI at environment 1 (Mated)
++   true_delta <- my.delta            #if different from 1 AI at environment 1 (Virgin)
++   true_gamma <- 1            #The current model assumes 1, but it used to be useful before
++   true_tau <- 1              #The current model assumes 1, but at some point we considered it different from 1
++ 
++   #If I well understand the first is q in tester and the second in line. q_row1 is enviornment1 and q_row2 environment 2
++   
++   allq<-matrix(rep(c(my.qtest,my.qline),nconditions),ncol=2,byrow=T)  
++   #q_row1 <- c(my.qtest, my.qline)
++   #q_row2 <- c(my.qtest, my.qline)
++   
++   true_phi <- 0.02           #Neg binomial dispersion parameter, the bigger it is the higher the variance=mu+phi mu^2 is
++ 
++   #xs <- ys <- zs <- rep(NA, sum(allI))
++ 
++   flaganalyze<- rep(1,nconditions)
++   for(loopc in 1:nconditions)
++ 	{
++ 		cat("loopc is",loopc,"\n")
++ 		means <- c(allq[loopc,1]/true_alpha, allq[loopc,2]*true_alpha, mult*((1-allq[loopc,1])/true_alpha+(1-allq[loopc,2])*true_alpha)*true_tau)
++ 		for(i in 1:allI[loopc])
++ 		{
++ 			xs <- rnbinom(1, size=1/true_phi, mu=means[1]*true_betas_row1[i])
++ 			ys <- rnbinom(1, size=1/true_phi, mu=means[2]*true_betas_row1[i])
++ 			zs <- rnbinom(1, size=1/true_phi, mu=means[3]*true_betas_row1[i])
++ 			# cat("xs of i",i,"is",xs[i],"\n")
++ 			# cat("true_betas_row1[i] is",true_betas_row1[i],"\n")
++ 			# cat("means[1] is",means[1],"\n")
++ 		if(loopc==1&i==1) mycounts<-paste(xs,ys,zs,sep=",") else mycounts<-paste(mycounts,xs,ys,zs,sep=",")
++ 		}	
++ 	}
++ 
++ 	cat("mycounts is",mycounts,"\n")
++ 	
++ 	out <- paste("line", "fusion_id", paste(allI,collapse=","),
++ 	          mycounts, 
++ 	          paste(as.vector(t(allq)),collapse=","), paste(flaganalyze,collapse=","), sep=",")
++ 	cat(out,file=out.file,append=TRUE,sep="\n")
++ }
+loopc is 1 
+mycounts is 25,94,112,28,118,147,21,68,108 
+loopc is 1 
+mycounts is 29,78,110,35,76,151,19,72,64 
+> 
+are_q_equal Y
+qsim1 0.5
+qmodel1 0.5
+
+R version 3.6.3 (2020-02-29) -- "Holding the Windsock"
+Copyright (C) 2020 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> what.to.do <- (commandArgs(TRUE))
+> if(length(what.to.do)>0)
++ {
++   data.file <- as.character(unlist(strsplit(what.to.do[1],"="))[2])
++   q.model.g1 <- as.numeric(as.character(unlist(strsplit(what.to.do[2],"="))[2]))
++   q.model.g2 <- as.numeric(as.character(unlist(strsplit(what.to.do[3],"="))[2]))
++   stan.program <- as.character(unlist(strsplit(what.to.do[4],"="))[2])
++   niter <- as.numeric(as.character(unlist(strsplit(what.to.do[5],"="))[2]))
++   nburnin <- as.numeric(as.character(unlist(strsplit(what.to.do[6],"="))[2]))
++   save.sample.freq <- as.numeric(as.character(unlist(strsplit(what.to.do[7],"="))[2]))
++   reporting.freq <- as.numeric(as.character(unlist(strsplit(what.to.do[8],"="))[2]))
++   stepsize <- as.numeric(as.character(unlist(strsplit(what.to.do[9],"="))[2]))
++   nconditions<- as.numeric(as.character(unlist(strsplit(what.to.do[10],"="))[2]))
++ }
+> 
+> out.dir <- dirname(data.file)
+> print(out.dir)
+[1] "/blue/mcintyre/fabio.marroni/git_BASE_2020/BASE_2020/simulation//g3_sim_output/H1_not_null_H2_not_null_H3_null"
+> 
+> base.out<-paste(gsub(".csv","",basename(data.file)), 
++                                  stan.program,
++                                  'qmodel_g1', q.model.g1, 'qmodel_g2', q.model.g2, 
++                                  'iterations', niter, 'burnin', nburnin, 
++                                  'thin', save.sample.freq, 'refresh', reporting.freq, 
++                                  'stepsize', stepsize, sep="_")
+> fileout <- paste(paste(out.dir, base.out, sep = "/"),".csv",sep="")
+> print(fileout)
+[1] "/blue/mcintyre/fabio.marroni/git_BASE_2020/BASE_2020/simulation//g3_sim_output/H1_not_null_H2_not_null_H3_null/out_alpha_2_delta_2_qsim_g1_0.5_qsim_g2_0.5_mult_1_myreads_100_simruns_2_stan2_qmodel_g1_0.5_qmodel_g2_0.5_iterations_6000_burnin_3000_thin_1_refresh_1000_stepsize_0.8.csv"
+> 
+> #########################
+> #Trying to generalize to an arbitrary number of conditions
+> #########################
+> 
+> seqcond<-paste("c",seq(1,nconditions),sep="")
+> fornames1=paste("g1_",seqcond,sep="") #Genotype 1 given condition number
+> fornames2 <- c("sampleprop", "mean", "q025", "q975", "Bayes_evidence", "AI_decision")
+> fornames=paste(paste(rep(fornames1,each=length(fornames2)),fornames2,sep="_"),collapse=",")
+> #The three possible alignment states: better to tester (G1?), better to line (G2?), equally good (both).
+> #alnto<-c("g1","g2","Both")
+> counttester<-paste("counts_",seqcond,"_g1",sep="")
+> countline<-paste("counts_",seqcond,"_g2",sep="")
+> countboth<-paste("counts_",seqcond,"_both",sep="")
+> countheader<-paste(counttester,countline,countboth,sep=",",collapse=",")
+> priorstester<-paste("prior_",seqcond,"_g1",sep="")
+> priorsline<-paste("prior_",seqcond,"_g2",sep="")
+> allpriors<-sort(c(priorstester,priorsline))
+> seqreps<-paste(seqcond,"_num_reps",sep="")
+> activeflag<-paste(seqcond,"flag_analyze",sep="_")
+> firstheaders=paste(c("comparison","FEATURE_ID",
++                      seqreps,
++                      countheader,
++                       allpriors, 
++ 					  "H3_independence_Bayes_evidence"),
++                       collapse=",")
+> 
+> alpha_post_names<-paste(paste("alpha",seq(1,nconditions),"_postmean",sep=""),collapse=",")
+> cat("alpha names are:",alpha_post_names,"\n")
+alpha names are: alpha1_postmean 
+> cat("firstheaders are:",firstheaders,"\n")
+firstheaders are: comparison,FEATURE_ID,c1_num_reps,counts_c1_g1,counts_c1_g2,counts_c1_both,prior_c1_g1,prior_c1_g2,H3_independence_Bayes_evidence 
+> headers_out=paste(firstheaders,fornames,alpha_post_names,paste(activeflag,collapse=","),sep=",")
+> cat("headers_out is:",headers_out,"\n")
+headers_out is: comparison,FEATURE_ID,c1_num_reps,counts_c1_g1,counts_c1_g2,counts_c1_both,prior_c1_g1,prior_c1_g2,H3_independence_Bayes_evidence,g1_c1_sampleprop,g1_c1_mean,g1_c1_q025,g1_c1_q975,g1_c1_Bayes_evidence,g1_c1_AI_decision,alpha1_postmean,c1_flag_analyze 
+> cat(headers_out,file=fileout,append=FALSE,sep="\n")
+> 
+> 
+> #End of arguments and names copied from the scripts used for the analysis of real data
+> 
+> #The special thing about this function is that it is able to accept a multiplicative factor for the estimation of the reads aligning on both genomes, to see how misspecification of that quantity affects results
+> options(warn=1)
+> 
+> library("rstan")
+Loading required package: StanHeaders
+Loading required package: ggplot2
+rstan (Version 2.21.2, GitRev: 2e1f913d3ca3)
+For execution on a local, multicore CPU with excess RAM we recommend calling
+options(mc.cores = parallel::detectCores()).
+To avoid recompilation of unchanged Stan programs, we recommend calling
+rstan_options(auto_write = TRUE)
+> rstan_options(auto_write = FALSE)
+> gam.mles.data <- function(x){
++   # CALCULATION OF THE MLES for gamma  GIVEN THE SAMPLE
++   n <- length(x)
++   xb <- mean(x)
++   xd <- mean(log(x))
++   s <- log(xb)-xd
++   a0 <- (3.0-s+sqrt((s-3.0)^2+24.0*s))/12.0/s
++   l <- 1
++   repeat{
++     ans <- (log(a0)-digamma(a0)-s)
++     a1 <- a0-ans/(1.0/a0-trigamma(a0))
++     if(abs(ans) <= 1.0e-7 | l >= 30){break}
++     a0 <- a1
++     l <- l+1}
++   ah <- a1; bh <- xb/a1
++   return(c(ah,bh))
++ }
+> 
+> #Computing prior hyperparameters for beta, the size effect
+> prior_empBayes_forbeta <- function(xs,ys,zs){
++   #Function to compute the hyperparameters of the gamma distribution for
++   #beta_1,...beta_K~beta(a_beta,b_beta) with b_beta~gamma(a_b_beta,b_b_beta)
++   bbeta_est <- (xs+ys+zs)/2
++   bbeta_est[which(bbeta_est==0)] <- 0.1
++   tem <- gam.mles.data(bbeta_est) #MLE of the gamma function but it is parameterized so that E(x)=ab if x~gamma(a,b)
++   tem[1] <- min(max(tem[1],10^(-3)),10^5)
++   tem[2] <- min(max(tem[2],10^(-3)),10^5)  #Our gamma parameterization is E(x)=a/b
++   a_beta <- tem[1]
++   a_b_beta <- 2*tem[2]^(-1)#
++   b_b_beta <- 2
++   return(list(a_beta=a_beta, a_b_beta=a_b_beta, b_b_beta=b_b_beta))
++ }
+> 
+> library(tidyverse)
+── Attaching packages ─────────────────────────────────────── tidyverse 1.3.0 ──
+✔ tibble  3.0.4     ✔ dplyr   1.0.2
+✔ tidyr   1.1.2     ✔ stringr 1.4.0
+✔ readr   1.4.0     ✔ forcats 0.5.0
+✔ purrr   0.3.4     
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ tidyr::extract() masks rstan::extract()
+✖ dplyr::filter()  masks stats::filter()
+✖ dplyr::lag()     masks stats::lag()
+> mydata <- as_tibble(read.csv(data.file))
+> 
+> for (gene in 1:nrow(mydata))
++ {
++   
++   nreps <- mydata[gene,] %>% dplyr::select(ends_with("num_reps"))
++   nconditions <- length(nreps)            #Number of environments
++   seqI<-nreps
++   allI<-as.vector(seqI)  
++   cat("seqI is")
++   print(seqI)
++   
++   xs <- unlist(mydata[gene,] %>% dplyr::select(starts_with("counts")) %>% dplyr::select(contains("g1")))
++   ys <- unlist(mydata[gene,] %>% dplyr::select(starts_with("counts")) %>% dplyr::select(contains("g2")))
++   zs <- unlist(mydata[gene,] %>% dplyr::select(starts_with("counts")) %>% dplyr::select(contains("both")))
++   xactiveflag <- unlist(mydata[gene,] %>% dplyr::select(contains("flag_analyze")))
++   print(xs)
++   print(ys)
++   print(zs)
++   #If at least one flaganalyze is 0 we fill the results wiht NA and go to the next
++   if(prod(xactiveflag)==0)
++   {
++     howmanyNA<-length(unlist(strsplit(headers_out,",")))-2
++ 	out=paste("line", "fusion_id", rep(NA,howmanyNA,collapse=","),sep=",")
++   cat(out,file=fileout,append=TRUE,sep="\n")
++   next
++   }
++   q_sim <- matrix(unlist((mydata[gene, ]%>% dplyr::select(starts_with("prior")))), nrow=length(nreps), byrow =TRUE, ncol=2)
++   
++   hyper_beta <- prior_empBayes_forbeta(xs, ys, zs)
++   #Making the data ready for stan
++   datastan <- list(K = sum(seqI),                 #Total number of bioresps
++ 	    n_environment = nconditions,         #Number of environments, so far 2.
++ 	    xenv = rep(seq(1,length(seqI)),seqI),       #Environment index 
++ 	    xs = as.vector(xs),
++ 	    ys = as.vector(ys),
++ 	    zs = as.vector(zs),
++ 	    r = q_sim,  #matrix of systematic bias corrections
++ 	    a_beta = hyper_beta$a_beta,               #Set to MLE under the null model
++ 	    a_b_beta = hyper_beta$a_b_beta,           #b_beta~gamma(a_b_beta,b_b_beta)
++ 	    b_b_beta = hyper_beta$b_b_beta,
++ 	    a_overdispersion = 2.01,#1,
++ 	    b_overdispersion = 0.05 #100, #phi is apriori small, if inverse gamma is used prior mean b_phi/(a_phi-1)
++ 	 )
++   
++   starting_values  <-  function(){ ###Not actually needed according to Luis
++     out <- with(datastan, list(overdispersion=0.01, bbeta=xs+ys+zs, alpha=rep(1.0,n_environment)))
++     return(out)
++   }
++ 
++ 	totalcounts=
++ 	rbind(
++ 	xs=tapply(datastan$xs,FUN=sum,INDEX=datastan$xenv),
++ 	ys=tapply(datastan$ys,FUN=sum,INDEX=datastan$xenv),
++ 	zs=tapply(datastan$zs,FUN=sum,INDEX=datastan$xenv)
++ 	)
++   
++   cat("datastan is")
++   print(datastan)
++ 
++   fit1 <-rstan::stan(
++     file = "environmentalmodel2.stan", # Stan program
++ 	  data = datastan,    # named list of data
++ 	  chains = 1,             # number of Markov chains
++ 	  warmup = nburnin,          # number of warmup iterations per chain
++ 	  thin = save.sample.freq,
++ 	  iter = niter,            # total number of iterations per chain
++ 	  refresh = reporting.freq,             # no progress shown if this is 0
++ 	  init = "starting_values",
++ 	  control = list(adapt_delta = stepsize)  # The bigger the value the smaller the step size
++ 	  #pars=c("alpha","sigma_alpha")
++ 	  #c("bbeta","alpha","overdispersion","theta","sigma_alpha") 
++    )
++ 	
++    # fig.dir <- paste0(unlist(strsplit(out.dir, "/g3_sim_output"))[1], "/data_visualization")
++    # jpeg(paste0(fig.dir,"/diagnostic_plots_stan4c_", gsub(".csv", "", tail(unlist(strsplit(fileout, "/")), 1)),".jpeg"))
++    # rstan::pairs(fit1)
++    # dev.off()
++   
++   theta<-rstan::extract(fit1,pars="theta")$theta #Estimated proportion of reads aligning to tester in mated after adjusting for systematic bias
++   alpha<-rstan::extract(fit1,pars=c("alpha"))$alpha
++   Stanresults=matrix(NA,nrow=nconditions,ncol=4)
++   Bayes_AI_pvalue<-rep(NA,nconditions)
++   for(mystan in 1:nrow(Stanresults)) {
++     theta1<-theta[,mystan]
++     alpha1<-alpha[,mystan]
++     Stanresults[mystan,]<-c(mean(theta1), quantile(theta1,c(0.025,0.975)),2*min(mean(theta1>1/2),mean(theta1<1/2))) 
++     Bayes_AI_pvalue[mystan]<-2*min(c(mean(alpha1>1),mean(alpha1<1)))
++   }
++   colnames(Stanresults)=c("mean","q_025","q_975","AIbayesian-pva")
++   cat("Stanresults",Stanresults,"\n")
++   Stanresults[,"AIbayesian-pva"]
++   
++   for(repcond in 1:nconditions) {
++     theta1<-theta[,repcond]
++     smallStanres<-paste(round(totalcounts[row.names(totalcounts)=="xs",repcond]/(totalcounts[row.names(totalcounts)=="xs",repcond]+totalcounts[row.names(totalcounts)=="ys",repcond]),4),
++                         round(mean(theta1),4),
++                         paste(round(quantile(theta1,c(0.025,0.975)),4),collapse=","),
++                         round(Bayes_AI_pvalue[repcond],4),
++                         ifelse(Bayes_AI_pvalue[repcond]<0.05,1,0),sep=",")
++     if(repcond==1) fullStanres<-smallStanres else fullStanres<-paste(fullStanres,smallStanres,sep=",",collapse=",")
++   }
++   alpha1greateralpha2<-NA 
++   #alpha1greateralpha2 is the bayesian independence test. Only meaningful for two conditions
++   if(nconditions==2) {
++     alpha1greateralpha2<-round(min(mean(alpha[,1]>alpha[,2]),mean(alpha[,1]<alpha[,2]))*2,4)
++   }
++   
++   out=paste("line", "fusion_id", paste(allI,collapse=","), 
++             paste(apply(totalcounts,2,paste,collapse=","),collapse=","),
++             paste(t(datastan$r),collapse=","),
++             alpha1greateralpha2,
++             fullStanres,
++             paste(round(apply(alpha,2,mean),4),collapse=","),
++ 			paste(xactiveflag,collapse=","),
++             sep=",")
++   print(xactiveflag)
++   cat(out,file=fileout,append=TRUE,sep="\n")
++   print(unlist(strsplit(headers_out,",")))
++   print(unlist(strsplit(out,",")))
++ }
+seqI is# A tibble: 1 x 1
+  c1_num_reps
+        <int>
+1           3
+counts_c1_g1_rep1 counts_c1_g1_rep2 counts_c1_g1_rep3 
+               25                28                21 
+counts_c1_g2_rep1 counts_c1_g2_rep2 counts_c1_g2_rep3 
+               94               118                68 
+counts_c1_both_rep1 counts_c1_both_rep2 counts_c1_both_rep3 
+                112                 147                 108 
+datastan is$K
+[1] 3
+
+$n_environment
+[1] 1
+
+$xenv
+[1] 1 1 1
+
+$xs
+[1] 25 28 21
+
+$ys
+[1]  94 118  68
+
+$zs
+[1] 112 147 108
+
+$r
+     [,1] [,2]
+[1,]  0.5  0.5
+
+$a_beta
+[1] 37.39923
+
+$a_b_beta
+[1] 0.622456
+
+$b_b_beta
+[1] 2
+
+$a_overdispersion
+[1] 2.01
+
+$b_overdispersion
+[1] 0.05
+
+
+SAMPLING FOR MODEL 'environmentalmodel2' NOW (CHAIN 1).
+Chain 1: 
+Chain 1: Gradient evaluation took 3e-05 seconds
+Chain 1: 1000 transitions using 10 leapfrog steps per transition would take 0.3 seconds.
+Chain 1: Adjust your expectations accordingly!
+Chain 1: 
+Chain 1: 
+Chain 1: Iteration:    1 / 6000 [  0%]  (Warmup)
+Chain 1: Iteration: 1000 / 6000 [ 16%]  (Warmup)
+Chain 1: Iteration: 2000 / 6000 [ 33%]  (Warmup)
+Chain 1: Iteration: 3000 / 6000 [ 50%]  (Warmup)
+Chain 1: Iteration: 3001 / 6000 [ 50%]  (Sampling)
+Chain 1: Iteration: 4000 / 6000 [ 66%]  (Sampling)
+Chain 1: Iteration: 5000 / 6000 [ 83%]  (Sampling)
+Chain 1: Iteration: 6000 / 6000 [100%]  (Sampling)
+Chain 1: 
+Chain 1:  Elapsed Time: 0.185405 seconds (Warm-up)
+Chain 1:                0.192387 seconds (Sampling)
+Chain 1:                0.377792 seconds (Total)
+Chain 1: 
+Stanresults 0.2351596 0.1831656 0.2995387 0 
+c1_flag_analyze 
+              1 
+ [1] "comparison"                     "FEATURE_ID"                    
+ [3] "c1_num_reps"                    "counts_c1_g1"                  
+ [5] "counts_c1_g2"                   "counts_c1_both"                
+ [7] "prior_c1_g1"                    "prior_c1_g2"                   
+ [9] "H3_independence_Bayes_evidence" "g1_c1_sampleprop"              
+[11] "g1_c1_mean"                     "g1_c1_q025"                    
+[13] "g1_c1_q975"                     "g1_c1_Bayes_evidence"          
+[15] "g1_c1_AI_decision"              "alpha1_postmean"               
+[17] "c1_flag_analyze"               
+ [1] "line"      "fusion_id" "3"         "74"        "280"       "367"      
+ [7] "0.5"       "0.5"       "NA"        "0.209"     "0.2352"    "0.1832"   
+[13] "0.2995"    "0"         "1"         "1.8159"    "1"        
+seqI is# A tibble: 1 x 1
+  c1_num_reps
+        <int>
+1           3
+counts_c1_g1_rep1 counts_c1_g1_rep2 counts_c1_g1_rep3 
+               29                35                19 
+counts_c1_g2_rep1 counts_c1_g2_rep2 counts_c1_g2_rep3 
+               78                76                72 
+counts_c1_both_rep1 counts_c1_both_rep2 counts_c1_both_rep3 
+                110                 151                  64 
+datastan is$K
+[1] 3
+
+$n_environment
+[1] 1
+
+$xenv
+[1] 1 1 1
+
+$xs
+[1] 29 35 19
+
+$ys
+[1] 78 76 72
+
+$zs
+[1] 110 151  64
+
+$r
+     [,1] [,2]
+[1,]  0.5  0.5
+
+$a_beta
+[1] 22.01757
+
+$a_b_beta
+[1] 0.4167362
+
+$b_b_beta
+[1] 2
+
+$a_overdispersion
+[1] 2.01
+
+$b_overdispersion
+[1] 0.05
+
+
+SAMPLING FOR MODEL 'environmentalmodel2' NOW (CHAIN 1).
+Chain 1: 
+Chain 1: Gradient evaluation took 1.8e-05 seconds
+Chain 1: 1000 transitions using 10 leapfrog steps per transition would take 0.18 seconds.
+Chain 1: Adjust your expectations accordingly!
+Chain 1: 
+Chain 1: 
+Chain 1: Iteration:    1 / 6000 [  0%]  (Warmup)
+Chain 1: Iteration: 1000 / 6000 [ 16%]  (Warmup)
+Chain 1: Iteration: 2000 / 6000 [ 33%]  (Warmup)
+Chain 1: Iteration: 3000 / 6000 [ 50%]  (Warmup)
+Chain 1: Iteration: 3001 / 6000 [ 50%]  (Sampling)
+Chain 1: Iteration: 4000 / 6000 [ 66%]  (Sampling)
+Chain 1: Iteration: 5000 / 6000 [ 83%]  (Sampling)
+Chain 1: Iteration: 6000 / 6000 [100%]  (Sampling)
+Chain 1: 
+Chain 1:  Elapsed Time: 0.181404 seconds (Warm-up)
+Chain 1:                0.19244 seconds (Sampling)
+Chain 1:                0.373844 seconds (Total)
+Chain 1: 
+Stanresults 0.2925705 0.2275086 0.3727256 0.0006666667 
+c1_flag_analyze 
+              1 
+ [1] "comparison"                     "FEATURE_ID"                    
+ [3] "c1_num_reps"                    "counts_c1_g1"                  
+ [5] "counts_c1_g2"                   "counts_c1_both"                
+ [7] "prior_c1_g1"                    "prior_c1_g2"                   
+ [9] "H3_independence_Bayes_evidence" "g1_c1_sampleprop"              
+[11] "g1_c1_mean"                     "g1_c1_q025"                    
+[13] "g1_c1_q975"                     "g1_c1_Bayes_evidence"          
+[15] "g1_c1_AI_decision"              "alpha1_postmean"               
+[17] "c1_flag_analyze"               
+ [1] "line"      "fusion_id" "3"         "83"        "226"       "325"      
+ [7] "0.5"       "0.5"       "NA"        "0.2686"    "0.2926"    "0.2275"   
+[13] "0.3727"    "7e-04"     "1"         "1.5665"    "1"        
+> 
+are_q_equal Y
+qsim1 0.5
+qmodel1 0.5
+
+R version 3.6.3 (2020-02-29) -- "Holding the Windsock"
+Copyright (C) 2020 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> what.to.do <- (commandArgs(TRUE))
+> if(length(what.to.do)>0)
++ {
++   data.file <- as.character(as.character(unlist(strsplit(what.to.do[1],"="))[2]))
++   q.model.g1 <- as.numeric(as.character(unlist(strsplit(what.to.do[2],"="))[2]))
++   q.model.g2 <- as.numeric(unlist(strsplit(what.to.do[3],"="))[2])
++   stan.program <- as.character(unlist(strsplit(what.to.do[4],"="))[2])
++   niter <- as.numeric(as.character(unlist(strsplit(what.to.do[5],"="))[2]))
++   nburnin <- as.numeric(as.character(unlist(strsplit(what.to.do[6],"="))[2]))
++   save.sample.freq <- as.numeric(as.character(unlist(strsplit(what.to.do[7],"="))[2]))
++   reporting.freq <- as.numeric(as.character(unlist(strsplit(what.to.do[8],"="))[2]))
++   stepsize <- as.numeric(as.character(unlist(strsplit(what.to.do[9],"="))[2]))
++   nconditions<- as.numeric(as.character(unlist(strsplit(what.to.do[10],"="))[2]))
++ }
+> 
+> out.dir <- dirname(data.file)
+> print(out.dir)
+[1] "/blue/mcintyre/fabio.marroni/git_BASE_2020/BASE_2020/simulation//g3_sim_output/H1_not_null_H2_not_null_H3_null"
+> 
+> base.out<-paste(gsub(".csv","",basename(data.file)), 
++                                  stan.program,
++                                  'qmodel_g1', q.model.g1, 'qmodel_g2', q.model.g2, 
++                                  'iterations', niter, 'burnin', nburnin, 
++                                  'thin', save.sample.freq, 'refresh', reporting.freq, 
++                                  'stepsize', stepsize, sep="_")
+> fileout <- paste(paste(out.dir, base.out, sep = "/"),".csv",sep="")
+> print(fileout)
+[1] "/blue/mcintyre/fabio.marroni/git_BASE_2020/BASE_2020/simulation//g3_sim_output/H1_not_null_H2_not_null_H3_null/out_alpha_2_delta_2_qsim_g1_0.5_qsim_g2_0.5_mult_1_myreads_100_simruns_2_stan4c_qmodel_g1_0.5_qmodel_g2_0.5_iterations_6000_burnin_3000_thin_1_refresh_1000_stepsize_0.99.csv"
+> 
+> #########################
+> #Trying to generalize to an arbitrary number of conditions
+> #########################
+> 
+> seqcond<-paste("c",seq(1,nconditions),sep="")
+> fornames1=paste("g1_",seqcond,sep="") #Tester given condition
+> fornames2 <- c("sampleprop", "mean", "q025", "q975", "Bayes_evidence", "AI_decision")
+> fornames=paste(paste(rep(fornames1,each=length(fornames2)),fornames2,sep="_"),collapse=",")
+> #The three possible alignment states: better to tester (G1?), better to line (G2?), equally good (both).
+> #alnto<-c("g1","g2","Both")
+> counttester<-paste("counts_",seqcond,"_g1",sep="")
+> countline<-paste("counts_",seqcond,"_g2",sep="")
+> countboth<-paste("counts_",seqcond,"_both",sep="")
+> countheader<-paste(counttester,countline,countboth,sep=",",collapse=",")
+> priorstester<-paste("prior_",seqcond,"_g1",sep="")
+> priorsline<-paste("prior_",seqcond,"_g2",sep="")
+> allpriors<-sort(c(priorstester,priorsline))
+> seqreps<-paste(seqcond,"_num_reps",sep="")
+> activeflag<-paste(seqcond,"flag_analyze",sep="_")
+> firstheaders=paste(c("comparison","FEATURE_ID",
++                      seqreps,
++                      countheader,
++                       allpriors, 
++ 					  "H3_independence_Bayes_evidence",
++ 					  "probofsameAI"),
++                       collapse=",")
+> 
+> alpha_post_names<-paste(paste("alpha",seq(1,nconditions),"_postmean",sep=""),collapse=",")
+> cat("alpha names are:",alpha_post_names,"\n")
+alpha names are: alpha1_postmean 
+> cat("stan4 firstheaders are:",firstheaders,"\n")
+stan4 firstheaders are: comparison,FEATURE_ID,c1_num_reps,counts_c1_g1,counts_c1_g2,counts_c1_both,prior_c1_g1,prior_c1_g2,H3_independence_Bayes_evidence,probofsameAI 
+> headers_out=paste(firstheaders,fornames,alpha_post_names,"sigma_alpha_mean","sigma_alpha_0.5","sigma_alpha_0.95",paste(activeflag,collapse=","),sep=",")
+> cat("stan4 headers_out is:",headers_out,"\n")
+stan4 headers_out is: comparison,FEATURE_ID,c1_num_reps,counts_c1_g1,counts_c1_g2,counts_c1_both,prior_c1_g1,prior_c1_g2,H3_independence_Bayes_evidence,probofsameAI,g1_c1_sampleprop,g1_c1_mean,g1_c1_q025,g1_c1_q975,g1_c1_Bayes_evidence,g1_c1_AI_decision,alpha1_postmean,sigma_alpha_mean,sigma_alpha_0.5,sigma_alpha_0.95,c1_flag_analyze 
+> cat(headers_out,file=fileout,append=FALSE,sep="\n")
+> 
+> 
+> #End of arguments and names copied from the scripts used for the analysis of real data
+> 
+> #The special thing about this function is that it is able to accept a multiplicative factor for the estimation of the reads aligning on both genomes, to see how misspecification of that quantity affects results
+> options(warn=1)
+> 
+> library("rstan")
+Loading required package: StanHeaders
+Loading required package: ggplot2
+rstan (Version 2.21.2, GitRev: 2e1f913d3ca3)
+For execution on a local, multicore CPU with excess RAM we recommend calling
+options(mc.cores = parallel::detectCores()).
+To avoid recompilation of unchanged Stan programs, we recommend calling
+rstan_options(auto_write = TRUE)
+> rstan_options(auto_write = FALSE)
+> gam.mles.data <- function(x){
++   # CALCULATION OF THE MLES for gamma  GIVEN THE SAMPLE
++   n <- length(x)
++   xb <- mean(x)
++   xd <- mean(log(x))
++   s <- log(xb)-xd
++   a0 <- (3.0-s+sqrt((s-3.0)^2+24.0*s))/12.0/s
++   l <- 1
++   repeat{
++     ans <- (log(a0)-digamma(a0)-s)
++     a1 <- a0-ans/(1.0/a0-trigamma(a0))
++     if(abs(ans) <= 1.0e-7 | l >= 30){break}
++     a0 <- a1
++     l <- l+1}
++   ah <- a1; bh <- xb/a1
++   return(c(ah,bh))
++ }
+> 
+> #Computing prior hyperparameters for beta, the size effect
+> prior_empBayes_forbeta <- function(xs,ys,zs){
++   #Function to compute the hyperparameters of the gamma distribution for
++   #beta_1,...beta_K~beta(a_beta,b_beta) with b_beta~gamma(a_b_beta,b_b_beta)
++   bbeta_est <- (xs+ys+zs)/2
++   bbeta_est[which(bbeta_est==0)] <- 0.1
++   tem <- gam.mles.data(bbeta_est) #MLE of the gamma function but it is parameterized so that E(x)=ab if x~gamma(a,b)
++   tem[1] <- min(max(tem[1],10^(-3)),10^5)
++   tem[2] <- min(max(tem[2],10^(-3)),10^5)  #Our gamma parameterization is E(x)=a/b
++   a_beta <- tem[1]
++   a_b_beta <- 2*tem[2]^(-1)#
++   b_b_beta <- 2
++   return(list(a_beta=a_beta, a_b_beta=a_b_beta, b_b_beta=b_b_beta))
++ }
+> 
+> library(tidyverse)
+── Attaching packages ─────────────────────────────────────── tidyverse 1.3.0 ──
+✔ tibble  3.0.4     ✔ dplyr   1.0.2
+✔ tidyr   1.1.2     ✔ stringr 1.4.0
+✔ readr   1.4.0     ✔ forcats 0.5.0
+✔ purrr   0.3.4     
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ tidyr::extract() masks rstan::extract()
+✖ dplyr::filter()  masks stats::filter()
+✖ dplyr::lag()     masks stats::lag()
+> mydata <- as_tibble(read.csv(data.file))
+> 
+> for (gene in 1:nrow(mydata))
++ {
++   
++   nreps <- mydata[gene,] %>% dplyr::select(ends_with("num_reps"))
++   nconditions <- length(nreps)            #Number of environments
++   seqI<-nreps
++   allI<-as.vector(seqI)  
++   cat("seqI is")
++   print(seqI)
++  
++   xs <- unlist(mydata[gene,] %>% dplyr::select(starts_with("counts")) %>% dplyr::select(contains("g1")))
++   ys <- unlist(mydata[gene,] %>% dplyr::select(starts_with("counts")) %>% dplyr::select(contains("g2")))
++   zs <- unlist(mydata[gene,] %>% dplyr::select(starts_with("counts")) %>% dplyr::select(contains("both")))
++   xactiveflag <- unlist(mydata[gene,] %>% dplyr::select(contains("flag_analyze")))
++   print(xs)
++   print(ys)
++   print(zs)
++   #If at least one flaganalyze is 0 we fill the results wiht NA and go to the next
++   if(prod(xactiveflag)==0)
++   {
++     howmanyNA<-length(unlist(strsplit(headers_out,",")))-2
++ 	out=paste("line", "fusion_id", rep(NA,howmanyNA,collapse=","),sep=",")
++     cat(out,file=fileout,append=TRUE,sep="\n")
++     next
++   }
++   q_sim <- matrix(unlist((mydata[gene, ]%>% dplyr::select(starts_with("prior")))), nrow=length(nreps), byrow =TRUE, ncol=2)
++   
++   hyper_beta <- prior_empBayes_forbeta(xs, ys, zs)
++   #Making the data ready for stan
++   datastan <- list(K = sum(seqI),                 #Total number of bioresps
++ 	    n_environment = nconditions,         #Number of environments, so far 2.
++ 	    xenv = rep(seq(1,length(seqI)),seqI),       #Environment index 
++ 	    xs = as.vector(xs),
++ 	    ys = as.vector(ys),
++ 	    zs = as.vector(zs),
++ 	    r = q_sim,  #matrix of systematic bias corrections
++ 	    a_beta = hyper_beta$a_beta,               #Set to MLE under the null model
++ 	    a_b_beta = hyper_beta$a_b_beta,           #b_beta~gamma(a_b_beta,b_b_beta)
++ 	    b_b_beta = hyper_beta$b_b_beta,
++ 	    a_overdispersion = 2.01,#1,
++ 	    b_overdispersion = 0.05 #100, #phi is apriori small, if inverse gamma is used prior mean b_phi/(a_phi-1)
++ 	 )
++   
++   starting_values  <-  function(){ ###Not actually needed according to Luis
++     out <- with(datastan, list(overdispersion=0.01, bbeta=xs+ys+zs, alpha=rep(1.0,n_environment)))
++     return(out)
++   }
++ 
++ 	totalcounts=
++ 	rbind(
++ 	xs=tapply(datastan$xs,FUN=sum,INDEX=datastan$xenv),
++ 	ys=tapply(datastan$ys,FUN=sum,INDEX=datastan$xenv),
++ 	zs=tapply(datastan$zs,FUN=sum,INDEX=datastan$xenv)
++ 	)
++   
++   datastan4c <- datastan
++   datastan4c$c_sigma_alpha <- c(NA,0.01760,0.01472,0.01343,0.01265 )[datastan4c$n_environment]#Constants depends on number of environments
++   cat("datastan is")
++   print(datastan4c)
++ 
++   fit1 <-rstan::stan(
++     file = "environmentalmodel4c.stan", # Stan program
++ 	  data = datastan4c,    # named list of data
++ 	  chains = 1,             # number of Markov chains
++ 	  warmup = nburnin,          # number of warmup iterations per chain
++ 	  thin = save.sample.freq,
++ 	  iter = niter,            # total number of iterations per chain
++ 	  refresh = reporting.freq,             # no progress shown
++ 	  init = "starting_values",
++ 	  control = list(adapt_delta = stepsize)  # The bigger the value the smaller the step size
++ 	  #pars=c("alpha","sigma_alpha")
++ 	  #c("bbeta","alpha","overdispersion","theta","sigma_alpha") 
++    )
++ 	
++    # fig.dir <- paste0(unlist(strsplit(out.dir, "/g3_sim_output"))[1], "/data_visualization")
++    # jpeg(paste0(fig.dir,"/diagnostic_plots_stan4c_", gsub(".csv", "", tail(unlist(strsplit(fileout, "/")), 1)),".jpeg"))
++    # rstan::pairs(fit1)
++    # dev.off()
++   
++ 	palphasequal <- rstan::extract(fit1,pars=c("palphasequal"))$palphasequal
++ 	theta <- rstan::extract(fit1,pars="theta")$theta #Estimated proportion of reads aligning to tester in mated after adjusting for systematic bias
++ 	alpha <- rstan::extract(fit1,pars=c("alpha"))$alpha
++ 	sigma_alpha <- rstan::extract(fit1,pars=c("sigma_alpha"))$sigma_alpha
++ 	
++ 	Stanresults <- matrix(NA,nrow=nconditions,ncol=4)
++ 	Bayes_AI_pvalue <- rep(NA,nconditions)
++ 	for(mystan in 1:nrow(Stanresults)) {
++ 	  theta1 <- theta[,mystan]
++ 	  alpha1 <- alpha[,mystan]
++     Stanresults[mystan,]<-c(mean(theta1), quantile(theta1,c(0.025,0.975)),2*min(mean(theta1>1/2),mean(theta1<1/2))) 
++ 	Bayes_AI_pvalue[mystan] <- 2*min(c(mean(alpha1>1), mean(alpha1<1)))
++ 	} 
++ 	
++ 	colnames(Stanresults) <- c("mean", "q_025", "q_975", "AIbayesian-pval")
++ 	cat("Stanresults",Stanresults,"\n")
++ 	Stanresults[,"AIbayesian-pval"]
++ 
++ 	sigma_alpha_out <- c(mean(sigma_alpha), quantile(sigma_alpha, c(0.5,0.95))) #POSSIBLE bug: c(0.5,0.95) or c(0.05,0.95)? 
++ 
++ 	for(repcond in 1:nconditions) {
++ 	  theta1 <- theta[,repcond]
++ 	  smallStanres <- paste(round(totalcounts[row.names(totalcounts)=="xs", repcond]/(totalcounts[row.names(totalcounts)=="xs", repcond] + totalcounts[row.names(totalcounts)=="ys", repcond]), 4),
++ 	                        round(mean(theta1), 4),
++ 	                        paste(round(quantile(theta1, c(0.025,0.975)), 4), collapse=","),
++ 	                        round(Bayes_AI_pvalue[repcond], 4), 
++ 	                        ifelse(Bayes_AI_pvalue[repcond] < 0.05, 1, 0), sep=",")
++ 	  if(repcond==1) fullStanres <- smallStanres else fullStanres <- paste(fullStanres, smallStanres, sep=",", collapse=",")
++ 	}
++ 	
++ 	alpha1greateralpha2 <- NA
++ 	#alpha1greateralpha2 is the bayesian independence test. Only meaningful for two conditions
++ 	if(nconditions==2) {
++ 	  alpha1greateralpha2 <- min(tem<-mean(alpha[,1]-alpha[,2]<0),1-tem)*2
++ 	}
++ 
++ 	probofsameAI <- mean(palphasequal)    
++ 	
++ 	totalcounts <- rbind(xs <- tapply(datastan$xs, FUN=sum, INDEX=datastan$xenv),
++ 	                     ys <- tapply(datastan$ys, FUN=sum, INDEX=datastan$xenv),
++ 	                     zs <- tapply(datastan$zs, FUN=sum, INDEX=datastan$xenv))
++ 	
++ 	out <- paste("line", "fusion_id", paste(allI,collapse=","),
++ 	             paste(apply(totalcounts, 2, paste, collapse=","), collapse=","),
++ 				 paste(t(datastan$r),collapse=","),
++ 	             alpha1greateralpha2,
++ 	             probofsameAI,
++ 	             fullStanres,
++ 	             paste(round(apply(alpha,2,mean),4),collapse=","),
++ 	             paste(round(sigma_alpha_out,6),collapse=","),
++ 				 paste(xactiveflag,collapse=","),
++ 	             sep=",")
++     print(xactiveflag)
++ 	cat(out, file=fileout, append=TRUE, sep="\n")
++     print(unlist(strsplit(headers_out,",")))
++     print(unlist(strsplit(out,",")))
++ 
++ }
+seqI is# A tibble: 1 x 1
+  c1_num_reps
+        <int>
+1           3
+counts_c1_g1_rep1 counts_c1_g1_rep2 counts_c1_g1_rep3 
+               25                28                21 
+counts_c1_g2_rep1 counts_c1_g2_rep2 counts_c1_g2_rep3 
+               94               118                68 
+counts_c1_both_rep1 counts_c1_both_rep2 counts_c1_both_rep3 
+                112                 147                 108 
+datastan is$K
+[1] 3
+
+$n_environment
+[1] 1
+
+$xenv
+[1] 1 1 1
+
+$xs
+[1] 25 28 21
+
+$ys
+[1]  94 118  68
+
+$zs
+[1] 112 147 108
+
+$r
+     [,1] [,2]
+[1,]  0.5  0.5
+
+$a_beta
+[1] 37.39923
+
+$a_b_beta
+[1] 0.622456
+
+$b_b_beta
+[1] 2
+
+$a_overdispersion
+[1] 2.01
+
+$b_overdispersion
+[1] 0.05
+
+$c_sigma_alpha
+[1] NA
+
+Error in FUN(X[[i]], ...) : 
+  Stan does not support NA (in c_sigma_alpha) in data
+failed to preprocess the data; sampling not done
+Stan model 'environmentalmodel4c' does not contain samples.
+Stan model 'environmentalmodel4c' does not contain samples.
+Stan model 'environmentalmodel4c' does not contain samples.
+Stan model 'environmentalmodel4c' does not contain samples.
+Warning in mean.default(theta1) :
+  argument is not numeric or logical: returning NA
+Stanresults NA NA NA NaN 
+Warning in mean.default(sigma_alpha) :
+  argument is not numeric or logical: returning NA
+Warning in mean.default(theta1) :
+  argument is not numeric or logical: returning NA
+Warning in mean.default(palphasequal) :
+  argument is not numeric or logical: returning NA
+Error in apply(alpha, 2, mean) : dim(X) must have a positive length
+Calls: paste -> paste -> apply
+Execution halted

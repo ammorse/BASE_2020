@@ -1,3 +1,3 @@
-comparison,FEATURE_ID,c1_num_reps,c2_num_reps,c3_num_reps,counts_c1_g1_rep1,counts_c1_g2_rep1,counts_c1_both_rep1,counts_c1_g1_rep2,counts_c1_g2_rep2,counts_c1_both_rep2,counts_c1_g1_rep3,counts_c1_g2_rep3,counts_c1_both_rep3,counts_c2_g1_rep1,counts_c2_g2_rep1,counts_c2_both_rep1,counts_c2_g1_rep2,counts_c2_g2_rep2,counts_c2_both_rep2,counts_c2_g1_rep3,counts_c2_g2_rep3,counts_c2_both_rep3,counts_c3_g1_rep1,counts_c3_g2_rep1,counts_c3_both_rep1,counts_c3_g1_rep2,counts_c3_g2_rep2,counts_c3_both_rep2,counts_c3_g1_rep3,counts_c3_g2_rep3,counts_c3_both_rep3,prior_c1_g1,prior_c1_g2,prior_c2_g1,prior_c2_g2,prior_c3_g1,prior_c3_g2,c1_flag_analyze,c2_flag_analyze,c3_flag_analyze
-line,fusion_id,3,3,3,88,39,82,116,29,154,74,30,79,118,17,127,102,28,168,73,23,72,113,25,127,125,29,153,78,19,67,0.5,0.5,0.5,0.5,0.5,0.5,1,1,1
-line,fusion_id,3,3,3,104,19,116,109,39,160,50,13,95,83,18,124,101,31,123,58,18,107,110,29,116,140,36,149,75,14,116,0.5,0.5,0.5,0.5,0.5,0.5,1,1,1
+comparison,FEATURE_ID,c1_num_reps,counts_c1_g1_rep1,counts_c1_g2_rep1,counts_c1_both_rep1,counts_c1_g1_rep2,counts_c1_g2_rep2,counts_c1_both_rep2,counts_c1_g1_rep3,counts_c1_g2_rep3,counts_c1_both_rep3,prior_c1_g1,prior_c1_g2,c1_flag_analyze
+line,fusion_id,3,99,28,106,127,27,144,77,22,97,0.5,0.5,1
+line,fusion_id,3,118,15,149,136,21,110,60,26,93,0.5,0.5,1
