@@ -1,0 +1,3 @@
+stan_program,iterations,burnin,thin,refresh,stepsize,are_g1_qmodel_and_qsim_same,TT,ncond
+stan2,6000,3000,1,1000,0.8,Y,H,3
+stan4c,6000,3000,1,1000,0.99,Y,H,3
