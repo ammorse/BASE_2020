@@ -25,7 +25,7 @@ for line in $(tail -n +2 $SIMUL_DESIGN_FILE); do
   SIMRUNS=$(echo $line | awk -F',' '{print $6}')
   NCOND=$(echo $line | awk -F',' '{print $7}')
   echo ${NCOND}
-  if [ ${alpha} == 1 ]; then H1="null"; else H1="not-null"; fi
+  if [ ${alpha} == 1 ]; then H1="null"; else H1="not_null"; fi
   OUT_DIR=$DIR_PROJECT/g3_sim_output/H1_${H1}
   echo $OUT_DIR
   OUT_FILE=out_set_${2}_alpha_${alpha}_qsim_g1_${qsim1}_qsim_g2_${qsim1}_mult_${MULT}_myreads_${READS}_simruns_${SIMRUNS}.csv
