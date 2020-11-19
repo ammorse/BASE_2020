@@ -162,7 +162,7 @@ while(length(newline) != 0 ){
 #      paste(apply(totalcounts,2,paste,collapse=","),collapse=","),
       paste(rep(NA,3*nconditions),collapse=","),
 	    paste(rep(NA,2),collapse=","),
-        paste(rep(NA,2),collapse=","),
+        paste(rep(NA,3),collapse=","),
         paste(rep(NA,6*nconditions),collapse=","),
         paste(rep(NA,nconditions),collapse=","),
 #this zero is for the flaganalyze condition,
@@ -357,10 +357,9 @@ while(length(newline) != 0 ){
 #      paste(apply(totalcounts,2,paste,collapse=","),collapse=","),
       paste(apply(totalcounts,2,paste,collapse=","),collapse=","),
 	    paste(apply(datastan$r,1,paste,collapse=","),collapse=","),
-        paste(rep(NA,2),collapse=","),
+        paste(rep(NA,1),collapse=","),
         paste(rep(NA,6*nconditions),collapse=","),
-        paste(rep(NA,nconditions),collapse=","),
-        paste(rep(NA,3),collapse=","),1,sep=","
+        paste(rep(NA,nconditions),collapse=","),1,sep=","
 	  )
 	    }
 	#If one wants to see the results in a very long vector
